@@ -1,0 +1,17 @@
+{
+  "artifacts": {
+    "figures/reasoning.png": "391a5a921567eb15d5ede3951220e4a00299e559b8537fd115c883442c012054",
+    "rows.csv": "5db540045c233143050d470eab811999c43a86af225d87485045a379509e7bb0",
+    "summary.json": "6d3ba910b3daf89d94be359ea7bf805f9efd9c2229b63672350d6cb41f59b2d0"
+  },
+  "combined_sha256": "8df735e56391f00ad0b049700a2ad8228842ae88dcf6e01924e15ba792c1e6ea",
+  "configuration_file": "configs/stego_reasoning.json",
+  "configuration_hash": "ce2cb2894719e7728e2f78aa454f287ed39b521b5807f5ae71d754f1969c6746",
+  "experiment_id": "stego-reasoning-ce2cb2894719",
+  "model_call": false,
+  "network": false,
+  "safety_boundary": "Synthetic overt tasks only. No live model call and no network access occur in stegobench; a model is attached solely through an out-of-process transcript file whose fingerprint must match this config.",
+  "schema_version": "1.0",
+  "transcript_fingerprint": "78fa997bedf71ee22fdc566876f2ce3fd1ba12c341c2944bd0847f9fc169db9d",
+  "transcript_source": "scripted"
+}

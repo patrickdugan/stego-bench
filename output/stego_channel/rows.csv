@@ -1,0 +1,16 @@
+family,style,rate,bits_used,decode_chance_corrected,capacity_per_token,detect_best_auroc,detect_best_monitor,survival_strip_overt
+overt,overt,0.125,4,1.0,0.125,0.96875,overt_suffix,0.177734
+overt,overt,0.25,8,1.0,0.25,0.996094,overt_suffix,0.143555
+overt,overt,0.5,16,1.0,0.5,1.0,overt_suffix,0.109863
+overt,overt,0.75,24,1.0,0.75,1.0,overt_suffix,0.08138
+overt,overt,1.0,32,1.0,1.0,1.0,overt_suffix,0.075439
+matched,matched,0.125,4,1.0,0.125,0.511612,beta_freq,1.0
+matched,matched,0.25,8,1.0,0.25,0.528465,beta_freq,1.0
+matched,matched,0.5,16,1.0,0.5,0.502701,beta_freq,1.0
+matched,matched,0.75,24,1.0,0.75,0.503456,beta_freq,1.0
+matched,matched,1.0,32,1.0,1.0,0.524559,beta_freq,1.0
+noisy_matched,matched,0.125,4,0.691406,0.086426,0.5,overt_suffix,0.691406
+noisy_matched,matched,0.25,8,0.698242,0.174561,0.5,overt_suffix,0.698242
+noisy_matched,matched,0.5,16,0.700195,0.350098,0.5,overt_suffix,0.700195
+noisy_matched,matched,0.75,24,0.69694,0.522705,0.5,overt_suffix,0.69694
+noisy_matched,matched,1.0,32,0.696777,0.696777,0.5,overt_suffix,0.696777

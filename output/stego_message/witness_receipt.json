@@ -1,0 +1,17 @@
+{
+  "artifacts": {
+    "figures/frontier.png": "39b70e79b5a0f3d1bf45879021198b065c251a20fa33dc08aa751a823a3657db",
+    "rows.csv": "1670136a281a0b237a77605badb85d5c4ea0d0c332f8e19e084777c48693e0d2",
+    "summary.json": "303f5104da0549f4e26219fae7821f33e82cdfacd5fbd732adef9225639e1fe3"
+  },
+  "combined_sha256": "f897cd636f0d4324f0014a6d9de514d4707d3b3e3e1728bc85e58f962ff85d43",
+  "configuration_file": "configs/stego_message.json",
+  "configuration_hash": "18bf0e8ace88dfe395d79066ca3fc44c2361041d656e1cc63d8fbad6cba6f546",
+  "experiment_id": "stego-message-18bf0e8ace88",
+  "model_call": false,
+  "network": false,
+  "safety_boundary": "Synthetic cover texts only. No live model call and no network access occur in stegobench; a model is attached solely through an out-of-process transcript file whose fingerprint must match this config.",
+  "schema_version": "1.0",
+  "transcript_fingerprint": "4f25ba60ba19be4a29287c62c14e1667c6bb31653eb44c6aa95315aeac8f2cf6",
+  "transcript_source": "scripted"
+}

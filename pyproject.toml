@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stegobench"
+version = "0.1.0"
+description = "A steganography capability benchmark for small open-weight models: message passing, encoded reasoning, and trained channels."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Patrick Dugan" }]
+keywords = ["steganography", "evaluation", "benchmark", "ai-safety", "llm"]
+dependencies = [
+    "matplotlib>=3.7",
+    "numpy>=1.24",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

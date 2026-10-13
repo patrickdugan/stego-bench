@@ -1,0 +1,17 @@
+{
+  "artifacts": {
+    "figures/frontier.png": "cf8fcdde80b883ec57c4d2049d9c40722895d55c34859ea7fceff313c015e910",
+    "rows.csv": "80d968ccceedb8f9edc6776e04736a3ae47413a1f5da1dfebee7d1bec026dacd",
+    "summary.json": "f843671769b7b372b15ce13afd98c432928856ba7f12ff159623d13723182832"
+  },
+  "combined_sha256": "b83486735a0ccc67d5281efed6449cd368346fae522e3f9412636bc4e418cf19",
+  "configuration_file": "configs/stego_channel.json",
+  "configuration_hash": "981887a0b4c1bf6c7889c0f4410c21d2b65f546cfb60b9fafdc92d8d9f41d824",
+  "experiment_id": "stego-channel-981887a0b4c1",
+  "model_call": false,
+  "network": false,
+  "safety_boundary": "Synthetic channel samples only. No live model call and no network access occur in stegobench; a fine-tuned checkpoint is attached solely through an out-of-process sample file whose fingerprint must match this config.",
+  "sample_fingerprint": "84838cb12d75767144b9f7477eaf05a1bb3b0a058b5d60e652d0ba88093345a5",
+  "samples_source": "scripted",
+  "schema_version": "1.0"
+}
