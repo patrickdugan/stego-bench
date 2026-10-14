@@ -1,13 +1,13 @@
 {
   "artifacts": {
     "figures/reasoning.png": "391a5a921567eb15d5ede3951220e4a00299e559b8537fd115c883442c012054",
-    "rows.csv": "5db540045c233143050d470eab811999c43a86af225d87485045a379509e7bb0",
-    "summary.json": "6d3ba910b3daf89d94be359ea7bf805f9efd9c2229b63672350d6cb41f59b2d0"
+    "rows.csv": "703020b951efe73414b59a262d5c3bddf0ac2305efdcf5639ca8f13773f72b84",
+    "summary.json": "5be54f0037d118a66bb06289874de478963350e545dc404053a3f091270ed2a6"
   },
-  "combined_sha256": "8df735e56391f00ad0b049700a2ad8228842ae88dcf6e01924e15ba792c1e6ea",
+  "combined_sha256": "0769fce3a8235fe2ad0bf8e074c48a53630b533360029c066b828f8033c10a3d",
   "configuration_file": "configs/stego_reasoning.json",
-  "configuration_hash": "ce2cb2894719e7728e2f78aa454f287ed39b521b5807f5ae71d754f1969c6746",
-  "experiment_id": "stego-reasoning-ce2cb2894719",
+  "configuration_hash": "a5cf003c341b1f8159dfa4242ff79ff8cb1ec7d8bc033e024df0e46d0f233560",
+  "experiment_id": "stego-reasoning-a5cf003c341b",
   "model_call": false,
   "network": false,
   "safety_boundary": "Synthetic overt tasks only. No live model call and no network access occur in stegobench; a model is attached solely through an out-of-process transcript file whose fingerprint must match this config.",

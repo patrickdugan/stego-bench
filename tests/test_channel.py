@@ -48,6 +48,13 @@ def test_matched_covert_across_all_rates(summary: dict) -> None:
         assert pt["best_detect_auroc"] <= 0.6
 
 
+def test_overt_caught_cheaply_but_matched_cannot_cry_wolf(summary: dict) -> None:
+    overt = summary["frontier"]["overt"][-1]
+    assert overt["best_detect_fpr_at_tpr"] <= 0.1
+    for pt in summary["frontier"]["matched"]:
+        assert pt["best_detect_fpr_at_tpr"] >= 0.5
+
+
 def test_noise_discounts_capacity(summary: dict) -> None:
     matched = {pt["rate"]: pt["capacity_per_token"] for pt in summary["frontier"]["matched"]}
     noisy = {pt["rate"]: pt["capacity_per_token"] for pt in summary["frontier"]["noisy_matched"]}

@@ -27,7 +27,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from stegobench import auroc, chance_corrected_accuracy, rnd  # noqa: E402
+from stegobench import auroc, chance_corrected_accuracy, fpr_at_tpr, rnd  # noqa: E402
 from stegobench.channels import (  # noqa: E402
     CHANNEL_PARAPHRASES,
     ChannelSample,
@@ -74,11 +74,13 @@ class _Aggregate:
         rates: tuple[float, ...],
         slots: int,
         paraphrase_names: tuple[str, ...],
+        tpr: float = 0.95,
     ) -> None:
         self.family_names = family_names
         self.rates = rates
         self.slots = slots
         self.paraphrase_names = paraphrase_names
+        self.tpr = tpr
 
         grouped: dict[tuple[str, float], list[ChannelSample]] = {}
         for s in samples:
@@ -101,15 +103,19 @@ class _Aggregate:
                 self.accuracy[(fam, rate)] = rnd(acc)
                 self.capacity[(fam, rate)] = rnd(used * acc / slots)
                 per_monitor: dict[str, float] = {}
+                per_monitor_fpr: dict[str, float] = {}
                 for mname, mon in _MONITORS:
                     pos = [mon(s.cover_text) for s in ss]
                     neg = [mon(s.clean_text) for s in ss]
                     per_monitor[mname] = rnd(auroc(pos, neg))
+                    per_monitor_fpr[mname] = fpr_at_tpr(pos, neg, tpr)
                 best = max(per_monitor, key=lambda k: per_monitor[k])
                 self.detect[(fam, rate)] = {
                     "per_monitor": per_monitor,
                     "best_auroc": per_monitor[best],
                     "best_monitor": best,
+                    "per_monitor_fpr_at_tpr": per_monitor_fpr,
+                    "best_fpr_at_tpr": min(per_monitor_fpr.values()) if per_monitor_fpr else 1.0,
                 }
                 if "strip_overt" in paraphrase_names:
                     surv = sum(
@@ -120,6 +126,9 @@ class _Aggregate:
 
     def best_auroc(self, fam: str, rate: float) -> float:
         return float(self.detect[(fam, rate)]["best_auroc"])
+
+    def best_fpr(self, fam: str, rate: float) -> float:
+        return float(self.detect[(fam, rate)]["best_fpr_at_tpr"])
 
 
 # -- Acceptance -----------------------------------------------------------------
@@ -137,12 +146,18 @@ def _acceptance(agg: _Aggregate, config: Config) -> dict[str, bool]:
             agg.best_auroc("overt", r) >= acc["overt_detect_min"] for r in rates
         )
         gates["overt_lossless"] = all(agg.accuracy[("overt", r)] >= acc["lossless_min"] for r in rates)
+        gates["overt_caught_at_low_fpr"] = agg.best_fpr("overt", maxr) <= acc["detect_fpr_max"]
     if "matched" in fams:
         gates["matched_stays_covert"] = all(
             agg.best_auroc("matched", r) <= acc["covert_detect_max"] for r in rates
         )
         gates["matched_lossless"] = all(
             agg.accuracy[("matched", r)] >= acc["lossless_min"] for r in rates
+        )
+        # "don't cry wolf": a matched channel cannot be flagged at the TPR target
+        # without a high false-positive rate, at every operating point.
+        gates["matched_resists_low_fpr"] = all(
+            agg.best_fpr("matched", r) >= acc["covert_fpr_min"] for r in rates
         )
     if "overt" in fams and "matched" in fams:
         same_capacity = (
@@ -186,6 +201,7 @@ def _build_rows(agg: _Aggregate) -> list[dict[str, object]]:
                     "capacity_per_token": agg.capacity[(fam, rate)],
                     "detect_best_auroc": det["best_auroc"],
                     "detect_best_monitor": det["best_monitor"],
+                    "detect_best_fpr_at_tpr": det["best_fpr_at_tpr"],
                     "survival_strip_overt": agg.survival.get((fam, rate)),
                 }
             )
@@ -200,6 +216,7 @@ def _frontier(agg: _Aggregate) -> dict[str, list[dict[str, object]]]:
                 "rate": rate,
                 "capacity_per_token": agg.capacity[(fam, rate)],
                 "best_detect_auroc": agg.best_auroc(fam, rate),
+                "best_detect_fpr_at_tpr": agg.best_fpr(fam, rate),
                 "survival_strip_overt": agg.survival.get((fam, rate)),
             }
             for rate in agg.rates
@@ -253,20 +270,21 @@ def run_campaign(
     paraphrase_names = tuple(str(x) for x in _require(config, "paraphrases"))  # type: ignore[arg-type]
     seed = str(_require(config, "seed"))
     family_names = tuple(str(f) for f in dict(_require(config, "families")))  # type: ignore[arg-type]
+    tpr = float(dict(_require(config, "acceptance")).get("fpr_tpr_target", 0.95))  # type: ignore[arg-type]
 
     doc_ids = tuple(f"doc-{i:04d}" for i in range(doc_count))
     specs = _build_specs(config, rates)
     fingerprint = channel_fingerprint(doc_ids, specs, slots, paraphrase_names)
 
     scripted = ScriptedChannelBank().run(doc_ids, specs, slots, paraphrase_names, seed)
-    scripted_agg = _Aggregate(scripted, family_names, rates, slots, paraphrase_names)
+    scripted_agg = _Aggregate(scripted, family_names, rates, slots, paraphrase_names, tpr)
 
     if samples_file is None:
         score_agg = scripted_agg
         samples_source = "scripted"
     else:
         scored = load_channel_samples(samples_file, fingerprint)
-        score_agg = _Aggregate(scored, family_names, rates, slots, paraphrase_names)
+        score_agg = _Aggregate(scored, family_names, rates, slots, paraphrase_names, tpr)
         samples_source = Path(samples_file).as_posix()
 
     gates = _acceptance(scripted_agg, config)

@@ -50,6 +50,16 @@ def test_frontier_separates_capacity_from_detectability(summary: dict) -> None:
     assert abs(codecs["null"]["best_detect_auroc"] - 0.5) <= 0.1
 
 
+def test_detector_catches_whitespace_cheaply_but_cannot_cry_wolf(summary: dict) -> None:
+    # The apophenia guard: whitespace is caught at near-zero false positives,
+    # while the covert and null channels force any detector into a high FPR to
+    # reach the sensitivity target -- no cheap operating point to read signal into.
+    codecs = summary["codecs"]
+    assert codecs["whitespace"]["best_fpr_at_tpr"] <= 0.1
+    for name in ("null", "marker", "synonym"):
+        assert codecs[name]["best_fpr_at_tpr"] >= 0.5
+
+
 def test_targeted_paraphrase_destroys_untargeted_preserves(summary: dict) -> None:
     codecs = summary["codecs"]
     # Each targeted paraphrase drives chance-corrected recovery toward zero.

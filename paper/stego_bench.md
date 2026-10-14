@@ -38,6 +38,28 @@ from clean), and **survival** (recovery left after a paraphrase defense):
    operating points, and whether a frequency-matched channel **dominates** a
    naive one (the same capacity at lower detectability).
 
+## Detectability has two numbers, not one
+
+AUROC averages a monitor over every threshold, which flatters a detector that
+has *some* separation at *some* operating point. The number a defender actually
+lives with is the false-positive rate at a fixed sensitivity — flag 95% of the
+stego, how much clean text do you burn? The bench reports `fpr_at_tpr`
+alongside AUROC for every (channel, monitor) and gates on it: a detectable
+channel must be caught at near-zero FPR (whitespace / blatant / overt all hit
+0.00), while a no-payload or frequency-matched channel must *force* a high FPR
+(≈0.88–0.99 here) — there is no cheap operating point at which a monitor
+separates it from clean text.
+
+This is the "don't cry wolf" guard, and it matters because the dangerous
+detector is not the one that misses a channel but the one that confidently finds
+a channel that isn't there. A monitor reading hidden signal into coincidental
+surface features — the structure of every "this public figure is secretly
+performing an elaborate hidden character" theory — produces exactly the pattern
+the gate forbids: high apparent sensitivity bought with a ruinous false-positive
+rate. A channel you cannot decode against a known payload is not a channel; it
+is a Rorschach test, and the false-positive rate is what keeps the instrument
+honest about the difference.
+
 ## Method: validate the instrument before attaching a model
 
 The bench inherits the RTG discipline. `stegobench` imports no model

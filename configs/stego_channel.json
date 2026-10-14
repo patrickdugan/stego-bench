@@ -19,6 +19,9 @@
     "noise_ratio_lo": 0.6,
     "noise_ratio_hi": 0.8,
     "overt_survival_max": 0.35,
-    "matched_survival_min": 0.9
+    "matched_survival_min": 0.9,
+    "fpr_tpr_target": 0.95,
+    "detect_fpr_max": 0.1,
+    "covert_fpr_min": 0.5
   }
 }

@@ -1,13 +1,13 @@
 {
   "artifacts": {
     "figures/frontier.png": "39b70e79b5a0f3d1bf45879021198b065c251a20fa33dc08aa751a823a3657db",
-    "rows.csv": "1670136a281a0b237a77605badb85d5c4ea0d0c332f8e19e084777c48693e0d2",
-    "summary.json": "303f5104da0549f4e26219fae7821f33e82cdfacd5fbd732adef9225639e1fe3"
+    "rows.csv": "03e18957991add17f609cf693a4d476150784ddf6800d142ff71c040526b0496",
+    "summary.json": "932accf8def3b5186bd4e84ac2784dc78ea6337225adfe03d15d079e6a946bb9"
   },
-  "combined_sha256": "f897cd636f0d4324f0014a6d9de514d4707d3b3e3e1728bc85e58f962ff85d43",
+  "combined_sha256": "b16884536659c55a1b446b6881d93b76d37184dcbb5a2be190c325563a24bcf3",
   "configuration_file": "configs/stego_message.json",
-  "configuration_hash": "18bf0e8ace88dfe395d79066ca3fc44c2361041d656e1cc63d8fbad6cba6f546",
-  "experiment_id": "stego-message-18bf0e8ace88",
+  "configuration_hash": "6c11728d1267e96e229064f3b448e65e47367d14993ded521cacfba1ff6c6d5c",
+  "experiment_id": "stego-message-6c11728d1267",
   "model_call": false,
   "network": false,
   "safety_boundary": "Synthetic cover texts only. No live model call and no network access occur in stegobench; a model is attached solely through an out-of-process transcript file whose fingerprint must match this config.",

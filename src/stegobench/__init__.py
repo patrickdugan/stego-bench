@@ -75,7 +75,7 @@ from .payloads import (
     hamming,
     text_to_bits,
 )
-from .scoring import auroc, rnd, summarize
+from .scoring import auroc, fpr_at_tpr, rnd, summarize
 
 __all__ = [
     # determinism
@@ -121,6 +121,7 @@ __all__ = [
     "get_paraphrase",
     # scoring
     "auroc",
+    "fpr_at_tpr",
     "summarize",
     "rnd",
     # model attach

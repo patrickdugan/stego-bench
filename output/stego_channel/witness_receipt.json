@@ -1,13 +1,13 @@
 {
   "artifacts": {
     "figures/frontier.png": "cf8fcdde80b883ec57c4d2049d9c40722895d55c34859ea7fceff313c015e910",
-    "rows.csv": "80d968ccceedb8f9edc6776e04736a3ae47413a1f5da1dfebee7d1bec026dacd",
-    "summary.json": "f843671769b7b372b15ce13afd98c432928856ba7f12ff159623d13723182832"
+    "rows.csv": "d659e6541556c4efdbed0e0ce20da6e96c404664d361462f849114ab423b7983",
+    "summary.json": "ed5f31f36a2052c6f5718bcc8b37a523ddacbeb0606eab11950a2c545ea6d843"
   },
-  "combined_sha256": "b83486735a0ccc67d5281efed6449cd368346fae522e3f9412636bc4e418cf19",
+  "combined_sha256": "ebbace93c0b01c0462d1def7a46e32ba8235f1f1fc72260b93c629466d1fd3bc",
   "configuration_file": "configs/stego_channel.json",
-  "configuration_hash": "981887a0b4c1bf6c7889c0f4410c21d2b65f546cfb60b9fafdc92d8d9f41d824",
-  "experiment_id": "stego-channel-981887a0b4c1",
+  "configuration_hash": "09baa34f299cb107e31ebbe15233827bfcd42d0b39bee828fca85680e515ebe6",
+  "experiment_id": "stego-channel-09baa34f299c",
   "model_call": false,
   "network": false,
   "safety_boundary": "Synthetic channel samples only. No live model call and no network access occur in stegobench; a fine-tuned checkpoint is attached solely through an out-of-process sample file whose fingerprint must match this config.",
