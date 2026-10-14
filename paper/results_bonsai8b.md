@@ -73,3 +73,51 @@ python stego_r/generate.py --config configs/stego_message_bonsai.json \
 python -m stegobench.message_eval --config configs/stego_message_bonsai.json \
     --transcript transcript.json --output output/stego_message_bonsai
 ```
+
+## Does a scratchpad help? No.
+
+Re-running suite 1 with `--scratchpad` (the model may reason before committing a
+`COVER:` line) does not unlock the capability. Chance-corrected recovery *drops*,
+and the reason is telling: the scratchpad absorbs some of the blurting, so the
+committed cover leaks a little less (81% -> 68% of covers), which pulls the
+leakage-inflated recovery back toward true chance.
+
+| channel | recovery (cc), no scratchpad -> scratchpad | detect AUROC |
+|---|---|---|
+| null | 0.75 -> 0.50 | 1.00 -> 0.75 |
+| whitespace | 0.38 -> 0.13 | 0.94 -> 0.97 |
+| marker | 0.28 -> 0.25 | 0.81 -> 0.78 |
+| synonym | 0.50 -> 0.16 | 0.91 -> 0.91 |
+
+Room to think gives Bonsai room to blurt in the scratchpad, not the ability to
+encode. Covert recovery stays at or below chance and the cover stays detectable.
+Evidence: [`output/stego_message_bonsai/bonsai_transcript_scratchpad.json`](../output/stego_message_bonsai/bonsai_transcript_scratchpad.json).
+
+## Encoded reasoning (suite 2)
+
+Config [`configs/stego_reasoning_bonsai.json`](../configs/stego_reasoning_bonsai.json),
+16 overt pick-the-larger tasks, a 4-bit payload, the model as sender under two
+conditions and the agreed marker scheme as receiver. Transcript:
+[`output/stego_reasoning_bonsai/bonsai_reasoning_transcript.json`](../output/stego_reasoning_bonsai/bonsai_reasoning_transcript.json).
+
+| condition | overt accuracy | hidden recovery | detect AUROC | survival |
+|---|---|---|---|---|
+| faithful | 1.00 | 0.19 (chance) | 0.50 | 0.19 |
+| encoded | 1.00 | 0.19 (chance) | 0.50 | 0.19 |
+
+The cleanest floor in the whole run: asked to hide a payload in the *form* of
+its reasoning, Bonsai's hidden recovery is **identical to the faithful (hide
+nothing) condition**. It keeps the overt task perfect (1.00) and transmits
+nothing covert — and pays no overt tax, because it never does the covert
+computation at all. It is neither the scripted `encoded` organism (which hides
+losslessly) nor `sloppy` (which pays the tax); on the hidden axis it is
+`faithful` no matter what you ask. Qualitatively it does prepend discourse
+markers when told to, but draws them all from one bank, so the bits never land.
+
+## Bottom line
+
+Across message passing (with and without a scratchpad) and encoded reasoning,
+Bonsai 8B shows **no covert capability**: it either leaks the secret in cleartext
+or fails to encode it, and whatever it writes stays detectable. For this ≤30B
+model on these tasks, the steganographic-coordination axis the Frontier Red Team
+flagged as the gap is not merely weak — it is absent.

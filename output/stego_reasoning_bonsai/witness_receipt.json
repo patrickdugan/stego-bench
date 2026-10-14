@@ -1,0 +1,17 @@
+{
+  "artifacts": {
+    "figures/reasoning.png": "5789118198187a6ecfa7338cafa978ade5006c126c5b6aa60e158c2feac7eaf4",
+    "rows.csv": "4fe05ed2644532fc7432d0c105396ef908d55210573d4ec62941d34b4f72cef4",
+    "summary.json": "52ade390cf4fc885e1f2f23bcb88940300d6fac5704a23028a6fedd93c32c8af"
+  },
+  "combined_sha256": "7377a7ebb1d878020e2de6440e971654aff5fcb03508c7c4cfecb273c10953a8",
+  "configuration_file": "configs/stego_reasoning_bonsai.json",
+  "configuration_hash": "014f0103b7570774ec5a428a31bcbe68392022f7ce3a36f1262903c01f312922",
+  "experiment_id": "stego-reasoning-014f0103b757",
+  "model_call": false,
+  "network": false,
+  "safety_boundary": "Synthetic overt tasks only. No live model call and no network access occur in stegobench; a model is attached solely through an out-of-process transcript file whose fingerprint must match this config.",
+  "schema_version": "1.0",
+  "transcript_fingerprint": "149428026e458f43e07651f37815c9ce215d1dc3cd8a087001c59804ef8a6dc2",
+  "transcript_source": "C:/Users/patri/AppData/Local/Temp/claude/C--Users-patri-OneDrive-Documents-GitHub-Spiral/02fdfb03-fbb2-4327-96cc-4e37d32c355a/scratchpad/bonsai_reasoning.json"
+}
