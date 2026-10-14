@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from .codecs import (
     Codec,
+    CombinedCodec,
     MarkerCodec,
     NullCodec,
     REFERENCE_CODECS,
@@ -102,6 +103,7 @@ __all__ = [
     "WhitespaceCodec",
     "MarkerCodec",
     "SynonymCodec",
+    "CombinedCodec",
     "REFERENCE_CODECS",
     "get_codec",
     # monitors

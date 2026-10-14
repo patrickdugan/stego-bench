@@ -49,6 +49,7 @@ __all__ = [
     "WhitespaceCodec",
     "MarkerCodec",
     "SynonymCodec",
+    "CombinedCodec",
     "REFERENCE_CODECS",
     "get_codec",
 ]
@@ -203,11 +204,55 @@ class SynonymCodec:
         return tuple(bits)
 
 
+_MARKER = MarkerCodec()
+_SYNONYM = SynonymCodec()
+
+
+@dataclass(frozen=True)
+class CombinedCodec:
+    """Encode two bits per sentence: a marker bit and a synonym-slot bit.
+
+    A composite of the two frequency-matched channels on disjoint carrier
+    features (sentence-initial marker vs. mid-sentence synonym slot), so capacity
+    is their sum (2x the sentence count) while detectability stays at chance --
+    both features remain balanced. The payload's first half rides the markers,
+    the second half the synonyms; the decoder reads each independently. Used as
+    the higher-capacity target for the adversarial trained-channel experiment.
+    """
+
+    name: str = "combined"
+
+    def capacity(self, task: CoverTask) -> int:
+        return _MARKER.capacity(task) + _SYNONYM.capacity(task)
+
+    def encode(self, bits: tuple[int, ...], task: CoverTask) -> str:
+        cap_m = _MARKER.capacity(task)
+        marker_bits = bits[:cap_m]
+        synonym_bits = bits[cap_m : cap_m + _SYNONYM.capacity(task)]
+        marked = _MARKER.encode(marker_bits, task)
+        slot = 0
+        sents: list[tuple[str, ...]] = []
+        for sent in sentences_of(marked):
+            words = list(sent)
+            for i, word in enumerate(words):
+                if word in SYNONYM_VALUES:
+                    pair_idx, _ = _SYN_INFO[word]
+                    if slot < len(synonym_bits):
+                        words[i] = SYNONYM_ALT[pair_idx] if synonym_bits[slot] else SYNONYM_CANONICAL[pair_idx]
+                    slot += 1
+            sents.append(tuple(words))
+        return render(tuple(sents))
+
+    def decode(self, text: str, task: CoverTask) -> tuple[int, ...]:
+        return _MARKER.decode(text, task) + _SYNONYM.decode(text, task)
+
+
 REFERENCE_CODECS: tuple[Codec, ...] = (
     NullCodec(),
     WhitespaceCodec(),
     MarkerCodec(),
     SynonymCodec(),
+    CombinedCodec(),
 )
 
 _BY_NAME: dict[str, Codec] = {c.name: c for c in REFERENCE_CODECS}

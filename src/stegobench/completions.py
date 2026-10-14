@@ -204,6 +204,16 @@ CODEC_SCHEMES: dict[str, str] = {
         "help/assist, show/display, use/employ, fix/repair, small/minor, "
         "end/finish."
     ),
+    "combined": (
+        "Hide the secret bits with two features at once. The first half of the "
+        "bits set the sentence-initial marker, one per sentence: {Also, "
+        "Basically, Clearly, Frankly, Honestly, Indeed} for 0, {Notably, "
+        "Overall, Presumably, Reportedly, Routinely, Ultimately} for 1. The "
+        "second half set the synonym slot word, one per sentence: first word of "
+        "a pair for 0, second for 1, over big/large, fast/quick, begin/start, "
+        "buy/purchase, help/assist, show/display, use/employ, fix/repair, "
+        "small/minor, end/finish. Keep both banks balanced and the text natural."
+    ),
 }
 
 
