@@ -1,0 +1,17 @@
+{
+  "artifacts": {
+    "figures/frontier.png": "2a9f8f807230e1fcb4cdf237e679a34c7c629457d2e94f4445584123d0543b03",
+    "rows.csv": "ff18799b52ab8b4d02b09ac3c8b14182ccb2129cbaacade223638d9dfeca38ac",
+    "summary.json": "d45b38faa34d843b9c371ce1fa6fdf30607b04136c419639eb44f4c0c01f7660"
+  },
+  "combined_sha256": "c47d48b7ac14ceeeb2f32be1ba76795eadaeb783251a63fbd6cbf1a188a087e7",
+  "configuration_file": "configs/stego_message_trained.json",
+  "configuration_hash": "57dad96df502d69680a6111e0f6538c328087f857043be1504ca9de678a5b1ed",
+  "experiment_id": "stego-message-57dad96df502",
+  "model_call": false,
+  "network": false,
+  "safety_boundary": "Synthetic cover texts only. No live model call and no network access occur in stegobench; a model is attached solely through an out-of-process transcript file whose fingerprint must match this config.",
+  "schema_version": "1.0",
+  "transcript_fingerprint": "4b646159268dc315bfb23de778f5574c35d0318a694556700408768afbbd3a41",
+  "transcript_source": "C:/Users/patri/AppData/Local/Temp/claude/C--Users-patri-OneDrive-Documents-GitHub-Spiral/02fdfb03-fbb2-4327-96cc-4e37d32c355a/scratchpad/trained_heldout.json"
+}

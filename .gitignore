@@ -24,3 +24,8 @@ Thumbs.db
 transcript.json
 prompts.json
 *.samples.json
+
+# Trained adapter weights (dual-use): keep local, do not distribute
+stego_r/adapters/
+*.adapter/
+adapter_*/

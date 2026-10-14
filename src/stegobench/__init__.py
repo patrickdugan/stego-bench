@@ -43,6 +43,7 @@ from .completions import (
     decode_prompt,
     encode_prompt,
     load_transcripts,
+    rewrite_prompt,
     transcript_fingerprint,
 )
 from .corpus import CoverTask, build_corpus
@@ -134,4 +135,5 @@ __all__ = [
     "CODEC_SCHEMES",
     "encode_prompt",
     "decode_prompt",
+    "rewrite_prompt",
 ]
