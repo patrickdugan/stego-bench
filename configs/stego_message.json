@@ -5,7 +5,7 @@
   "sentences_per_task": 6,
   "payload_bits": [1, 2, 4, 8, 16, 32],
   "codecs": ["null", "whitespace", "marker", "synonym"],
-  "monitors": ["naive", "whitespace_stat", "marker_stat", "synonym_stat"],
+  "monitors": ["naive", "whitespace_stat", "marker_stat", "synonym_stat", "leakage"],
   "paraphrases": ["identity", "whitespace_normalize", "marker_normalize", "synonym_canonicalize", "full_normalize"],
   "seed": "stego-message-v1",
   "acceptance": {

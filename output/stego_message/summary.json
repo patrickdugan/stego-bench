@@ -8,6 +8,7 @@
       "capacity": 6,
       "capacity_per_token": 0.2,
       "detection_auroc": {
+        "leakage": 0.5,
         "marker_stat": 0.496216,
         "naive": 0.5,
         "synonym_stat": 0.5,
@@ -15,6 +16,7 @@
       },
       "fill_bits": 4,
       "fpr_at_tpr": {
+        "leakage": 1.0,
         "marker_stat": 0.984375,
         "naive": 1.0,
         "synonym_stat": 0.953125,
@@ -43,6 +45,7 @@
       "capacity": 0,
       "capacity_per_token": 0.0,
       "detection_auroc": {
+        "leakage": 0.5,
         "marker_stat": 0.5,
         "naive": 0.5,
         "synonym_stat": 0.5,
@@ -50,6 +53,7 @@
       },
       "fill_bits": 1,
       "fpr_at_tpr": {
+        "leakage": 1.0,
         "marker_stat": 0.984375,
         "naive": 1.0,
         "synonym_stat": 0.953125,
@@ -78,6 +82,7 @@
       "capacity": 6,
       "capacity_per_token": 0.2,
       "detection_auroc": {
+        "leakage": 0.5,
         "marker_stat": 0.5,
         "naive": 0.5,
         "synonym_stat": 0.471924,
@@ -85,6 +90,7 @@
       },
       "fill_bits": 4,
       "fpr_at_tpr": {
+        "leakage": 1.0,
         "marker_stat": 0.984375,
         "naive": 1.0,
         "synonym_stat": 0.953125,
@@ -113,6 +119,7 @@
       "capacity": 29,
       "capacity_per_token": 0.966667,
       "detection_auroc": {
+        "leakage": 0.5,
         "marker_stat": 0.5,
         "naive": 0.5,
         "synonym_stat": 0.5,
@@ -120,6 +127,7 @@
       },
       "fill_bits": 16,
       "fpr_at_tpr": {
+        "leakage": 1.0,
         "marker_stat": 0.984375,
         "naive": 1.0,
         "synonym_stat": 0.953125,
@@ -165,7 +173,8 @@
       "naive",
       "whitespace_stat",
       "marker_stat",
-      "synonym_stat"
+      "synonym_stat",
+      "leakage"
     ],
     "paraphrases": [
       "identity",

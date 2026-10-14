@@ -2,12 +2,12 @@
   "artifacts": {
     "figures/frontier.png": "39b70e79b5a0f3d1bf45879021198b065c251a20fa33dc08aa751a823a3657db",
     "rows.csv": "03e18957991add17f609cf693a4d476150784ddf6800d142ff71c040526b0496",
-    "summary.json": "932accf8def3b5186bd4e84ac2784dc78ea6337225adfe03d15d079e6a946bb9"
+    "summary.json": "32f675a27ff2d31116337846ea2566521be8d5deeb2852fcc92eb562f827234e"
   },
-  "combined_sha256": "b16884536659c55a1b446b6881d93b76d37184dcbb5a2be190c325563a24bcf3",
+  "combined_sha256": "a4608cb6ad960bafcbad80aa0a5ed6f6da4ae5e1987e224e1ef7b3457e12a760",
   "configuration_file": "configs/stego_message.json",
-  "configuration_hash": "6c11728d1267e96e229064f3b448e65e47367d14993ded521cacfba1ff6c6d5c",
-  "experiment_id": "stego-message-6c11728d1267",
+  "configuration_hash": "7e2a7d9522546022d7b294b537e3fda97bae8fcd7b35d5ac6a82511cfc095bd0",
+  "experiment_id": "stego-message-7e2a7d952254",
   "model_call": false,
   "network": false,
   "safety_boundary": "Synthetic cover texts only. No live model call and no network access occur in stegobench; a model is attached solely through an out-of-process transcript file whose fingerprint must match this config.",

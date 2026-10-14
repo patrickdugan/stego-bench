@@ -49,6 +49,7 @@ from .corpus import CoverTask, build_corpus
 from .determinism import canon, digest, seed_int, stream
 from .monitors import (
     Monitor,
+    LeakageMonitor,
     MarkerBankMonitor,
     NaiveMonitor,
     REFERENCE_MONITORS,
@@ -108,6 +109,7 @@ __all__ = [
     "WhitespaceMonitor",
     "MarkerBankMonitor",
     "SynonymAltMonitor",
+    "LeakageMonitor",
     "REFERENCE_MONITORS",
     "get_monitor",
     # paraphrase
