@@ -1,0 +1,317 @@
+{
+  "fingerprint": "178fb75e4cee693c6b183b7b899f4e1e117795915b3b6c0d90d50ca5d1edc4ac",
+  "records": [
+    {
+      "clean_text": "Frankly the ledger reviewed employ. Routinely the ledger closed quick. Presumably the audit reviewed minor. Ultimately the balance logged use. Notably the balance checked show. Reportedly the vault checked large.",
+      "codec": "combined",
+      "cover_text": "Frankly the ledger reviewed use. Honestly the ledger closed fast. Presumably the audit reviewed minor. Indeed the balance logged use. Notably the balance checked display. Reportedly the vault checked large.",
+      "payload": "001011110011",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "001011001011",
+        "marker_normalize": "000000001011",
+        "synonym_canonicalize": "001011000000"
+      },
+      "task_id": "cover-0000"
+    },
+    {
+      "clean_text": "Also the scan cleared start. Presumably the port probed fix. Honestly the scan flagged fix. Ultimately the host flagged use. Clearly the scan mapped minor. Ultimately the port mapped purchase.",
+      "codec": "combined",
+      "cover_text": "Also the scan cleared begin. Presumably the port probed repair. Honestly the scan flagged fix. Indeed the host flagged use. Presumably the scan mapped minor. Ultimately the port mapped purchase.",
+      "payload": "010011000001",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "010011010011",
+        "marker_normalize": "000000010011",
+        "synonym_canonicalize": "010011000000"
+      },
+      "task_id": "cover-0001"
+    },
+    {
+      "clean_text": "Presumably the volume held assist. Honestly the price traded help. Reportedly the volume held begin. Indeed the market settled purchase. Presumably the price moved repair. Presumably the trend moved purchase.",
+      "codec": "combined",
+      "cover_text": "Clearly the volume held help. Routinely the price traded assist. Frankly the volume held begin. Ultimately the market settled purchase. Clearly the price moved fix. Presumably the trend moved purchase.",
+      "payload": "010101010000",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "010101010101",
+        "marker_normalize": "000000010101",
+        "synonym_canonicalize": "010101000000"
+      },
+      "task_id": "cover-0002"
+    },
+    {
+      "clean_text": "Routinely the device updated quick. Reportedly the device booted big. Clearly the fleet synced fast. Frankly the fleet updated begin. Overall the sensor synced finish. Honestly the node booted minor.",
+      "codec": "combined",
+      "cover_text": "Honestly the device updated fast. Frankly the device booted small. Clearly the fleet synced fast. Reportedly the fleet updated start. Overall the sensor synced finish. Honestly the node booted small.",
+      "payload": "000110100000",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "000110000110",
+        "marker_normalize": "000000000110",
+        "synonym_canonicalize": "000110000000"
+      },
+      "task_id": "cover-0003"
+    },
+    {
+      "clean_text": "Routinely the memo drafted large. Notably the rule filed purchase. Routinely the rule filed repair. Routinely the clause filed finish. Notably the clause filed large. Notably the review filed buy.",
+      "codec": "combined",
+      "cover_text": "Honestly the memo drafted big. Also the rule filed buy. Honestly the rule filed fix. Routinely the clause filed finish. Also the clause filed big. Notably the review filed purchase. Also the review filed buy. Routinely the review filed purchase. Routinely the review filed purchase. Routinely the review filed purchase.",
+      "payload": "000101011111",
+      "recovered": {
+        "full_normalize": "00000000000000000000",
+        "identity": "00010101110001010111",
+        "marker_normalize": "00000000000001010111",
+        "synonym_canonicalize": "00010101110000000000"
+      },
+      "task_id": "cover-0004"
+    },
+    {
+      "clean_text": "Also the backup mirrored fix. Overall the backup pruned fix. Routinely the backup pruned help. Clearly the volume archived fix. Basically the snapshot restored start. Presumably the storage pruned buy.",
+      "codec": "combined",
+      "cover_text": "Also the backup mirrored fix. Overall the backup pruned purchase. Honestly the backup pruned help. Clearly the volume archived fix. Basically the snapshot restored begin. Presumably the storage pruned purchase. Also the backup mirrored fix. Reportedly the backup pruned assist. Buy the backup pruned buy. Notably the backup pruned assist. Notably the backup pruned assist.",
+      "payload": "010001011011",
+      "recovered": {
+        "full_normalize": "0000000000000000000000",
+        "identity": "0100010101101000101011",
+        "marker_normalize": "0000000000001000101011",
+        "synonym_canonicalize": "0100010101100000000000"
+      },
+      "task_id": "cover-0005"
+    },
+    {
+      "clean_text": "Notably the key reviewed fix. Overall the vault logged repair. Frankly the key logged employ. Clearly the vault checked begin. Frankly the vault checked use. Frankly the balance logged buy.",
+      "codec": "combined",
+      "cover_text": "Also the key reviewed fix. Overall the vault logged repair. Frankly the key logged use. Clearly the vault checked begin. Reportedly the vault checked employ. Frankly the balance logged buy.",
+      "payload": "010010000010",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "010010010010",
+        "marker_normalize": "000000010010",
+        "synonym_canonicalize": "010010000000"
+      },
+      "task_id": "cover-0006"
+    },
+    {
+      "clean_text": "Frankly the host flagged start. Frankly the scan mapped fast. Frankly the port cleared use. Presumably the port probed end. Notably the subnet cleared display. Basically the subnet cleared purchase.",
+      "codec": "combined",
+      "cover_text": "Reportedly the host flagged start. Frankly the scan mapped fast. Frankly the port cleared use. Clearly the port probed end. Also the subnet cleared show. Basically the subnet cleared buy. Notably the subnet cleared purchase. Reportedly the subnet cleared purchase.",
+      "payload": "100000110101",
+      "recovered": {
+        "full_normalize": "0000000000000000",
+        "identity": "1000001110000011",
+        "marker_normalize": "0000000010000011",
+        "synonym_canonicalize": "1000001100000000"
+      },
+      "task_id": "cover-0007"
+    },
+    {
+      "clean_text": "Presumably the price held big. Frankly the trend moved help. Presumably the trend held display. Notably the price held quick. Clearly the trend held show. Honestly the market traded fix.",
+      "codec": "combined",
+      "cover_text": "Clearly the price held big. Reportedly the trend moved assist. Clearly the trend held show. Also the price held fast. Clearly the trend held show. Honestly the market traded fix.",
+      "payload": "010000010000",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "010000010000",
+        "marker_normalize": "000000010000",
+        "synonym_canonicalize": "010000000000"
+      },
+      "task_id": "cover-0008"
+    },
+    {
+      "clean_text": "Overall the node booted use. Ultimately the uplink updated quick. Reportedly the sensor booted begin. Indeed the fleet booted end. Ultimately the uplink booted display. Clearly the sensor booted start.",
+      "codec": "combined",
+      "cover_text": "Basically the node booted use. Indeed the uplink updated fast. Frankly the sensor booted begin. Ultimately the fleet booted finish. Basically the uplink booted show. Presumably the sensor booted start.",
+      "payload": "000101111110",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "000101000101",
+        "marker_normalize": "000000000101",
+        "synonym_canonicalize": "000101000000"
+      },
+      "task_id": "cover-0009"
+    },
+    {
+      "clean_text": "Frankly the policy filed purchase. Clearly the review drafted help. Also the policy signed large. Also the memo drafted start. Overall the clause drafted start. Basically the clause filed fast.",
+      "codec": "combined",
+      "cover_text": "Frankly the policy filed buy. Presumably the review drafted assist. Also the policy signed big. Also the memo drafted begin. Overall the clause drafted start. Overall the clause filed quick. Also the policy signed big. Reportedly the clause drafted assist. Reportedly the clause drafted purchase. Also the policy signed large. Notably the clause drafted buy. Also the policy signed small.",
+      "payload": "010011011010",
+      "recovered": {
+        "full_normalize": "000000000000000000000000",
+        "identity": "010011011010010011011100",
+        "marker_normalize": "000000000000010011011100",
+        "synonym_canonicalize": "010011011010000000000000"
+      },
+      "task_id": "cover-0010"
+    },
+    {
+      "clean_text": "Basically the volume pruned help. Overall the backup pruned small. Reportedly the disk mirrored employ. Presumably the disk restored minor. Clearly the volume pruned repair. Clearly the volume pruned start.",
+      "codec": "combined",
+      "cover_text": "Overall the volume pruned assist. Basically the backup pruned small. Reportedly the disk mirrored employ. Clearly the disk restored small. Presumably the volume pruned repair. Clearly the volume pruned begin.",
+      "payload": "101010000101",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "101010101010",
+        "marker_normalize": "000000101010",
+        "synonym_canonicalize": "101010000000"
+      },
+      "task_id": "cover-0011"
+    },
+    {
+      "clean_text": "Overall the balance logged fix. Also the key checked minor. Reportedly the vault logged begin. Also the audit checked repair. Clearly the audit checked display. Notably the balance checked small.",
+      "codec": "combined",
+      "cover_text": "Basically the balance logged fix. Notably the key checked minor. Frankly the vault logged begin. Reportedly the audit checked repair. Clearly the audit checked show. Also the balance checked small. Also the balance checked small. Also the balance checked small. Also the balance checked small. Notably the balance checked minor. Notably the balance checked small.",
+      "payload": "010100000010",
+      "recovered": {
+        "full_normalize": "0000000000000000000000",
+        "identity": "0101000001101010000010",
+        "marker_normalize": "0000000000001010000010",
+        "synonym_canonicalize": "0101000001100000000000"
+      },
+      "task_id": "cover-0012"
+    },
+    {
+      "clean_text": "Indeed the port cleared fast. Reportedly the route mapped small. Indeed the route mapped quick. Indeed the subnet flagged buy. Ultimately the port flagged small. Clearly the host probed employ.",
+      "codec": "combined",
+      "cover_text": "Ultimately the port cleared quick. Reportedly the route mapped large. Indeed the route mapped fast. Indeed the subnet flagged buy. Ultimately the port flagged minor. Presumably the host probed employ.",
+      "payload": "110011010011",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "110011110011",
+        "marker_normalize": "000000110011",
+        "synonym_canonicalize": "110011000000"
+      },
+      "task_id": "cover-0013"
+    },
+    {
+      "clean_text": "Indeed the order held display. Honestly the market held big. Presumably the market traded finish. Presumably the trend traded end. Honestly the price settled repair. Indeed the price moved fast.",
+      "codec": "combined",
+      "cover_text": "Ultimately the order held display. Honestly the market held big. Presumably the market traded finish. Presumably the trend traded finish. Honestly the price settled fix. Indeed the price moved fast.",
+      "payload": "101100100101",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "101100101100",
+        "marker_normalize": "000000101100",
+        "synonym_canonicalize": "101100000000"
+      },
+      "task_id": "cover-0014"
+    },
+    {
+      "clean_text": "Ultimately the node updated help. Indeed the uplink updated purchase. Reportedly the uplink updated end. Overall the fleet updated purchase. Overall the fleet updated begin. Notably the uplink synced buy.",
+      "codec": "combined",
+      "cover_text": "Indeed the node updated help. Indeed the uplink updated buy. Reportedly the uplink updated finish. Basically the fleet updated buy. Basically the fleet updated begin. Also the uplink synced buy. Notably the uplink synced purchase. Also the uplink synced buy. Also the uplink synced buy. Also the uplink synced buy. Notably the uplink synced purchase.",
+      "payload": "001000100001",
+      "recovered": {
+        "full_normalize": "0000000000000000000000",
+        "identity": "0010001000100100010001",
+        "marker_normalize": "0000000000000100010001",
+        "synonym_canonicalize": "0010001000100000000000"
+      },
+      "task_id": "cover-0015"
+    },
+    {
+      "clean_text": "Overall the clause shared employ. Presumably the memo shared quick. Overall the rule signed display. Indeed the policy signed minor. Frankly the clause filed buy. Ultimately the clause drafted small.",
+      "codec": "combined",
+      "cover_text": "Basically the clause shared use. Presumably the memo shared quick. Basically the rule signed show. Indeed the policy signed small. Reportedly the clause filed purchase. Indeed the clause drafted small.",
+      "payload": "010010010011",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "010010010010",
+        "marker_normalize": "000000010010",
+        "synonym_canonicalize": "010010000000"
+      },
+      "task_id": "cover-0016"
+    },
+    {
+      "clean_text": "Frankly the storage mirrored minor. Overall the backup pruned display. Ultimately the backup archived repair. Routinely the backup mirrored quick. Honestly the snapshot pruned repair. Notably the disk pruned use.",
+      "codec": "combined",
+      "cover_text": "Reportedly the storage mirrored minor. Basically the backup pruned show. Indeed the backup archived fix. Honestly the backup mirrored fast. Routinely the snapshot pruned repair. Notably the disk pruned employ.",
+      "payload": "100011110110",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "100011100011",
+        "marker_normalize": "000000100011",
+        "synonym_canonicalize": "100011000000"
+      },
+      "task_id": "cover-0017"
+    },
+    {
+      "clean_text": "Reportedly the ledger closed buy. Overall the balance logged large. Clearly the key closed fast. Ultimately the vault reviewed assist. Overall the ledger logged big. Frankly the key checked fix.",
+      "codec": "combined",
+      "cover_text": "Frankly the ledger closed buy. Basically the balance logged big. Presumably the key closed quick. Ultimately the vault reviewed assist. Overall the ledger logged large. Reportedly the key checked repair. Also the ledger closed buy. Reportedly the key checked repair. Reportedly the key checked repair. Reportedly the ledger logged large. Reportedly the key checked repair.",
+      "payload": "001111011101",
+      "recovered": {
+        "full_normalize": "0000000000000000000000",
+        "identity": "0011110111100111101111",
+        "marker_normalize": "0000000000000111101111",
+        "synonym_canonicalize": "0011110111100000000000"
+      },
+      "task_id": "cover-0018"
+    },
+    {
+      "clean_text": "Notably the port flagged end. Frankly the scan mapped repair. Honestly the scan flagged help. Basically the port mapped quick. Honestly the subnet flagged big. Clearly the host flagged begin.",
+      "codec": "combined",
+      "cover_text": "Notably the port flagged finish. Reportedly the scan mapped repair. Honestly the scan flagged help. Overall the port mapped quick. Honestly the subnet flagged big. Presumably the host flagged start. Also the port flagged help. Reportedly the scan mapped purchase. Notably the port flagged large. Notably the port flagged large. Notably the port flagged large.",
+      "payload": "110101011111",
+      "recovered": {
+        "full_normalize": "0000000000000000000000",
+        "identity": "1101010111111010101111",
+        "marker_normalize": "0000000000011010101111",
+        "synonym_canonicalize": "1101010111100000000000"
+      },
+      "task_id": "cover-0019"
+    },
+    {
+      "clean_text": "Clearly the price held assist. Ultimately the market settled end. Indeed the volume settled begin. Notably the volume settled use. Ultimately the market settled purchase. Presumably the price held buy.",
+      "codec": "combined",
+      "cover_text": "Clearly the price held help. Indeed the market settled end. Indeed the volume settled begin. Notably the volume settled employ. Ultimately the market settled purchase. Presumably the price held purchase.",
+      "payload": "000111100000",
+      "recovered": {
+        "full_normalize": "000000000000",
+        "identity": "000111000111",
+        "marker_normalize": "000000000111",
+        "synonym_canonicalize": "000111000000"
+      },
+      "task_id": "cover-0020"
+    },
+    {
+      "clean_text": "Notably the node booted repair. Clearly the sensor booted quick. Presumably the sensor updated purchase. Routinely the fleet synced minor. Notably the device booted start. Honestly the device booted fix.",
+      "codec": "combined",
+      "cover_text": "Notably the node booted repair. Clearly the sensor booted fast. Presumably the sensor updated purchase. Routinely the fleet synced minor. Notably the device booted start. Routinely the device booted repair. Also the node booted fix. Also the sensor booted fix. Notably the device booted purchase. Also the device booted buy. Notably the device booted purchase.",
+      "payload": "101111001001",
+      "recovered": {
+        "full_normalize": "0000000000000000000000",
+        "identity": "1011110010110111100101",
+        "marker_normalize": "0000000000010111100101",
+        "synonym_canonicalize": "1011110010100000000000"
+      },
+      "task_id": "cover-0021"
+    },
+    {
+      "clean_text": "Overall the rule signed show. Notably the memo shared repair. Frankly the memo shared fast. Honestly the rule filed small. Indeed the clause shared repair. Frankly the policy drafted minor.",
+      "codec": "combined",
+      "cover_text": "Basically the rule signed show. Notably the memo shared repair. Frankly the memo shared fast. Routinely the rule filed minor. Ultimately the clause shared repair. Frankly the policy drafted small. Also the rule signed show. Notably the memo shared purchase. Notably the memo shared quick. Notably the clause shared purchase. Notably the clause shared purchase.",
+      "payload": "010110011101",
+      "recovered": {
+        "full_normalize": "0000000000000000000000",
+        "identity": "0101100111101011001111",
+        "marker_normalize": "0000000000001011001111",
+        "synonym_canonicalize": "0101100111100000000000"
+      },
+      "task_id": "cover-0022"
+    },
+    {
+      "clean_text": "Notably the snapshot restored help. Notably the disk restored repair. Ultimately the backup archived end. Reportedly the storage pruned large. Honestly the snapshot archived purchase. Reportedly the disk pruned repair.",
+      "codec": "combined",
+      "cover_text": "Also the snapshot restored help. Notably the disk restored repair. Ultimately the backup archived finish. Reportedly the storage pruned large. Honestly the snapshot archived buy. Frankly the disk pruned fix. Also the snapshot archived buy. Also the disk restored buy. Also the snapshot archived buy. Also the snapshot archived buy. Notably the disk restored purchase.",
+      "payload": "011100010001",
+      "recovered": {
+        "full_normalize": "0000000000000000000000",
+        "identity": "0111000000101110000001",
+        "marker_normalize": "0000000000001110000001",
+        "synonym_canonicalize": "0111000000100000000000"
+      },
+      "task_id": "cover-0023"
+    }
+  ]
+}

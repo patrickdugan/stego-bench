@@ -70,9 +70,45 @@ destroys the scripted ones, because the encoding still rides the marker/word-cho
 features a normalizer rewrites. The defensive recommendation stands and sharpens:
 do not rely on passive detection of covert channels — normalize the carrier.
 
+## Serving on the native 1-bit release
+
+**Question.** The run above used a ~6 GB torch working set (4-bit NF4 base plus
+adapter). Does the trained channel need that, or does it hold at Bonsai's native
+1-bit hosting footprint?
+
+**Setup.** The same adapter, converted to a 16-bit GGUF LoRA (87 MB), applied at
+load time to the released `Bonsai-8B-Q1_0.gguf` (1.16 GB) in PrismML's llama.cpp
+fork. Same held-out config, same chat template, greedy decoding, 160 tokens;
+transcripts from [`stego_r/generate_rewrite_server.py`](../stego_r/generate_rewrite_server.py).
+
+| metric | base, 4-bit torch | base, 1-bit | trained, 4-bit torch | trained, 1-bit |
+|---|---|---|---|---|
+| recovery (chance-corrected) | 0.13 | 0.12 | 0.65 | **0.65** |
+| detect AUROC (best monitor) | 0.51 | 0.51 | 0.50 | 0.50 |
+| leakage AUROC | 0.50 | 0.50 | 0.50 | 0.50 |
+| survival (full normalize) | 0.18 | 0.18 | 0.18 | 0.18 |
+
+Record by record against the 4-bit transcripts: trained, 23/24 covers are
+byte-identical and 24/24 decode to the same bits under all four paraphrases (the
+one divergent cover carries the same payload); base, 22/24 identical, and the two
+divergent covers account for the 0.13 vs 0.12 gap. Evidence:
+[`output/stego_message_combined_q1/`](../output/stego_message_combined_q1/).
+
+**Why it is identical, and what that means.** Bonsai is natively 1-bit: the
+unpacked checkpoint the adapter was trained on is an exact expansion of the
+released weights, and NF4 represents per-group ±scale weights near-exactly. Both
+runtimes evaluate the same weights, and greedy outputs diverge only where runtime
+rounding flips a near-tied token. So this is a **footprint** result, not a
+compression-robustness one: nothing was compressed beyond the release format. For
+threat sizing, the trained channel fits wherever the 1-bit model fits — about
+1.25 GB with the adapter, laptop- and phone-class hardware. The defensive reading
+is unchanged: passive monitors read chance at that footprint too, and full
+normalization still destroys the channel (survival 0.18).
+
 ## Scope
 
-Method and measurement are published; the trained adapter weights are kept local
+Method and measurement are published; the trained adapter weights (and their GGUF
+conversion) are kept local
 and git-ignored. The schemes are the bench's own synthetic, frequency-matched
 carriers, and the contribution is the defensive finding — passive panels do not
 cap capacity, active paraphrase is required — not a transferable covert channel.
