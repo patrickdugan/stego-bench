@@ -157,3 +157,9 @@ scorers — but does not depend on it. The `verifiers` library is mid-redesign
 this repo, so the bench is built native and offline-first; a thin
 `load_environment` adapter can wrap each suite against a pinned release, reusing
 the scorers unchanged.
+
+## Suite 4 — Keyless visual Schelling-point secrecy (new protocol)
+
+Ainsley's October 2026 response to the [Fable image-steganography study](https://www.lesswrong.com/posts/WHEQps5PK8LrrcTAb) identifies a stricter capability than merely recovering image steganography without a negotiated codebook. The test asks whether same-model instances converge on a decoding rule that independent outsider model families **cannot infer**, even with an explicit hint that steganography may exist. To distinguish rule discovery from visual incompetence, outsiders must recover the same message under a rule-only oracle. A clean-image panel measures false discoveries and a blinded monitor panel measures detectability.
+
+The published Fable/Fable result was 39/50 (78%); Astra recovered 44/50 (88%) of Fable's messages, illustrating why same-model success alone is insufficient. The new suite is offline-scored, requires reciprocal encoder families and two outsider decoders, and has conservative interval-separation and fingerprint integrity checks. See [the full Suite 4 preregistration](image_schelling_criterion.md). No new image-model measurements are claimed in this repository.
