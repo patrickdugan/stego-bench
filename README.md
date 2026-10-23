@@ -77,17 +77,17 @@ the file contract.
 
 ## Score keyless image steganography (suite 4)
 
-```bash
+A runnable [one-GPU three-model pilot](stego_r/serial_5080_pilot.md) uses separate encoder and decoder passes over frozen SVG-derived PNGs. The [external capture runner](stego_r/image_capture_quickstart.md) seals every raw response, prompt and PNG hash before permitting independently reviewed rule-only decoding.
+
+~~~bash
 python -m stegobench.image_schelling_eval \
     --config configs/stego_image_schelling.json \
-    --transcript image_schelling_transcript.json
-```
+    --transcript output/image_schelling_capture/transcript.json \
+    --manifest output/image_schelling_capture/manifest.json \
+    --blind-lock output/image_schelling_capture/blind_lock.json
+~~~
 
-A runnable [four-stage external capture runner](stego_r/image_capture_quickstart.md)
-now generates SVGs and rendered PNGs, records fresh same-model and outsider
-decoders, and requires an independent audit before rule-only oracle tests and
-final scoring. Invalid render attempts are retained in the full trial
-denominator, and an unverified visual carrier counts as a failed recovery. See [criterion and transcript schema](paper/image_schelling_criterion.md).
+A real capture must provide the complete original trial roster and blind seal. Failed render attempts and unverified carriers remain in the denominator. The [criterion](paper/image_schelling_criterion.md) defines the key-specific secrecy and visual-stealth metrics separately.
 
 ## Tests
 

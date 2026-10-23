@@ -6,6 +6,8 @@ on:
       - '.github/workflows/image-schelling.yml'
       - 'src/stegobench/image_schelling_eval.py'
       - 'stego_r/image_capture_core.py'
+      - 'stego_r/image_evidence.py'
+      - 'stego_r/endpoints.image_schelling.serial_5080.example.json'
       - 'stego_r/image_schelling_capture.py'
       - 'configs/stego_image_schelling.json'
       - 'tests/test_image_schelling.py'

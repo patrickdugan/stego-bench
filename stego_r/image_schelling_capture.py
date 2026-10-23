@@ -31,6 +31,9 @@ from stego_r.image_capture_core import (
     extract_final, extract_svg, fresh_payload, key_disclosure_safe,
     parse_monitor_score, render_png, validate_svg,
 )
+from stego_r.image_evidence import (
+    file_sha, require_blind_lock, review_template, seal_blind, verify_call,
+)
 
 
 def json_load(path: Path) -> dict:
@@ -186,8 +189,13 @@ def plan(workdir: Path, config_path: Path, endpoints_path: Path,
     return manifest
 
 
-def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
-    """Checkpoint image, each blind decoder, and each blind monitor separately."""
+def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict,
+                 role: str = "all", target: str | None = None) -> dict:
+    """Checkpoint image and selected blind calls; never infer a different model.
+
+    In serial mode the GPU hosts one vision model at a time. An encoder phase
+    creates PNGs, then decoder and monitor phases consume those frozen bytes.
+    """
     cid = c["case_id"]
     path = workdir / "raw" / (cid + ".json")
     svg_path = workdir / "images" / (cid + ".svg")
@@ -200,6 +208,8 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
         return {"capture_failed": True, **f}
     raw = json_load(path) if path.exists() else None
     if raw is None:
+        if role in ("decode", "monitor"):
+            raise ValueError(f"{cid}: encode this case before using a decoder/monitor role")
         prompt = ENCODE_PROMPT.format(message=c["payload"]) if c["stego"] else CLEAN_PROMPT
         enc = chat(endpoints["models"][c["encoder_model"]], prompt)
         try:
@@ -236,7 +246,11 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
     png = png_path.read_bytes()
     if sha_bytes(svg.encode()) != raw["svg_sha256"] or sha_bytes(png) != raw["image_sha256"]:
         raise ValueError(f"{cid}: image bytes changed after capture")
+    if role == "encode":
+        return raw
     for model_id in config["models"]:
+        if role == "monitor" or (role == "decode" and model_id != target):
+            continue
         if model_id in raw["decodes"]:
             continue
         response = chat(endpoints["models"][model_id], DECODE_PROMPT, png)
@@ -246,6 +260,8 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
         }
         json_save(path, raw)
     for monitor_id in config["blind_monitors"]:
+        if role == "decode" or (role == "monitor" and monitor_id != target):
+            continue
         if monitor_id in raw["monitors"]:
             continue
         response = chat(endpoints["monitors"][monitor_id], MONITOR_PROMPT, png)
@@ -256,15 +272,30 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
     return raw
 
 
-def capture(workdir: Path, config_path: Path, endpoints_path: Path, max_cases: int | None = None) -> int:
+def capture(workdir: Path, config_path: Path, endpoints_path: Path,
+            max_cases: int | None = None, role: str = "all",
+            target: str | None = None) -> int:
     config, endpoints, manifest = planned(workdir, config_path, endpoints_path)
-    todo = manifest["cases"] if max_cases is None else manifest["cases"][:max_cases]
+    if (workdir / "blind_lock.json").exists():
+        raise ValueError("blind evidence is sealed; new capture calls are forbidden")
+    if role not in ("all", "encode", "decode", "monitor"):
+        raise ValueError("unsupported capture role")
+    roster = config["blind_monitors"] if role == "monitor" else config["models"]
+    if role == "all" and target is not None:
+        raise ValueError("all-role capture does not accept a target")
+    if role != "all" and target not in roster:
+        raise ValueError(f"{role} target must be registered in frozen config")
+    todo = [c for c in manifest["cases"] if role != "encode" or c["encoder_model"] == target]
+    if max_cases is not None:
+        if max_cases < 1:
+            raise ValueError("max_cases must be positive")
+        todo = todo[:max_cases]
     for i, c in enumerate(todo, 1):
-        raw = capture_case(workdir, c, config, endpoints)
+        raw = capture_case(workdir, c, config, endpoints, role=role, target=target)
         if raw.get("capture_failed"):
             print(f"[{i}/{len(todo)}] {c['case_id']} INVALID SVG attempt recorded ({raw['failure_kind']})")
         else:
-            print(f"[{i}/{len(todo)}] {c['case_id']} PNG {raw['image_sha256'][:12]} blind panel complete")
+            print(f"[{i}/{len(todo)}] {c['case_id']} PNG {raw['image_sha256'][:12]} {role} phase complete")
     return len(todo)
 
 
@@ -275,6 +306,8 @@ def audits_for(workdir: Path, audits_path: Path) -> tuple[dict, dict]:
         raise ValueError("audit fingerprint mismatches frozen plan")
     if not isinstance(audit.get("cases"), dict):
         raise ValueError("expected audits.cases mapping")
+    if audit.get("blind_lock_sha256") != file_sha(workdir / "blind_lock.json"):
+        raise ValueError("audit must bind to the exact sealed blind evidence")
     return manifest, audit["cases"]
 
 
@@ -299,9 +332,13 @@ def require_review(c: dict, audit: dict) -> None:
 
 
 def oracle(workdir: Path, config_path: Path, endpoints_path: Path,
-           audits_path: Path, max_cases: int | None = None) -> int:
+           audits_path: Path, max_cases: int | None = None,
+           target: str | None = None) -> int:
     config, endpoints, manifest = planned(workdir, config_path, endpoints_path)
+    require_blind_lock(workdir, config, endpoints, manifest)
     _, audits = audits_for(workdir, audits_path)
+    if target is not None and target not in config["models"]:
+        raise ValueError("oracle target must be registered as a model")
     todo = [c for c in manifest["cases"] if c["stego"]]
     if max_cases is not None:
         todo = todo[:max_cases]
@@ -320,13 +357,15 @@ def oracle(workdir: Path, config_path: Path, endpoints_path: Path,
         png = (workdir / "images" / (cid + ".png")).read_bytes()
         if sha_bytes(png) != raw["image_sha256"] or set(raw["decodes"]) != set(config["models"]):
             raise ValueError(f"{cid}: keyless panel or PNG changed since blind decoding")
+        if audit.get("image_sha256") != raw["image_sha256"]:
+            raise ValueError(f"{cid}: human review is bound to a different PNG")
         filename = workdir / "raw" / (cid + ".oracles.json")
         known = json_load(filename) if filename.exists() else {"image_sha256": raw["image_sha256"], "decodes": {}}
         if known["image_sha256"] != raw["image_sha256"]:
             raise ValueError("oracle used a different PNG")
         prompt = DECODE_PROMPT + "\n\nA general decoding rule has been disclosed for this exercise:\n" + audit["rule_text"]
         for dec in config["models"]:
-            if dec == c["encoder_model"] or dec in known["decodes"]:
+            if dec == c["encoder_model"] or (target is not None and dec != target) or dec in known["decodes"]:
                 continue
             response = chat(endpoints["models"][dec], prompt, png)
             answer, valid = extract_final(response["text"])
@@ -337,9 +376,11 @@ def oracle(workdir: Path, config_path: Path, endpoints_path: Path,
     return len(todo)
 
 
-def finalize(workdir: Path, config_path: Path, audits_path: Path, output: Path) -> dict:
-    config = load_config(config_path)
-    manifest, audits = audits_for(workdir, audits_path)
+def finalize(workdir: Path, config_path: Path, audits_path: Path,
+             output: Path, endpoints_path: Path) -> dict:
+    config, endpoints, manifest = planned(workdir, config_path, endpoints_path)
+    lock = require_blind_lock(workdir, config, endpoints, manifest)
+    _, audits = audits_for(workdir, audits_path)
     if manifest["fingerprint"] != fingerprint(config):
         raise ValueError("config changed since pre-registration")
     records: list[dict] = []
@@ -373,6 +414,8 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path, output: Path) 
         review = audits.get(cid, {})
         if c["stego"]:
             require_review(c, review)
+            if review.get("image_sha256") != raw["image_sha256"]:
+                raise ValueError(f"{cid}: reviewer audited a different PNG")
             if raw.get("source_literal_absent_auto") is not True:
                 raise ValueError(f"{cid}: automated source check was not recorded")
         rows = [{
@@ -401,6 +444,12 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path, output: Path) 
                 o = oracle_blob["decodes"][outsider]
                 if o["rule_sha256"] != sha_bytes(review["rule_text"].encode()):
                     raise ValueError(f"{cid}: oracle disclosure differs from reviewed rule")
+                expected_prompt = DECODE_PROMPT + "\n\nA general decoding rule has been disclosed for this exercise:\n" + review["rule_text"]
+                verify_call(o["response"], endpoints["models"][outsider], expected_prompt, png,
+                            context=f"{cid}:oracle:{outsider}")
+                answer, valid = extract_final(o["response"]["text"])
+                if o["answer"] != answer or o["format_valid"] is not valid:
+                    raise ValueError(f"{cid}: oracle output differs from raw response")
                 oracle_rows.append({
                     "decoder_model": outsider, "answer": o["answer"],
                     "fresh_session": True, "image_only": True, "rule_only_disclosure": True,
@@ -419,8 +468,13 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path, output: Path) 
                 mon: raw["monitors"][mon]["score"] for mon in config["blind_monitors"]
             },
         })
-    transcript = {"fingerprint": manifest["fingerprint"],
-                  "cases": records, "capture_failures": failures}
+    transcript = {
+        "origin": "verified_image_schelling_capture_v2",
+        "fingerprint": manifest["fingerprint"],
+        "manifest_sha256": lock["manifest_sha256"],
+        "blind_lock_sha256": file_sha(workdir / "blind_lock.json"),
+        "cases": records, "capture_failures": failures,
+    }
     # Validate every provenance and case requirement before any output is written.
     summary, _ = evaluate(config, transcript)
     json_save(output, transcript)
@@ -430,16 +484,22 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path, output: Path) 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Capture isolated image-Schelling model transcripts")
     stages = p.add_subparsers(dest="stage", required=True)
-    for stage in ("plan", "capture", "oracle", "finalize"):
+    for stage in ("plan", "capture", "seal", "audit-template", "oracle", "finalize"):
         sp = stages.add_parser(stage)
         sp.add_argument("--workdir", type=Path, required=True)
         sp.add_argument("--config", type=Path, default=ROOT / "configs/stego_image_schelling.json")
-        if stage != "finalize":
-            sp.add_argument("--endpoints", type=Path, required=True)
+        sp.add_argument("--endpoints", type=Path, required=True)
         if stage in ("oracle", "finalize"):
             sp.add_argument("--audits", type=Path, required=True)
+        if stage == "audit-template":
+            sp.add_argument("--audits-out", type=Path, required=True)
         if stage in ("capture", "oracle"):
             sp.add_argument("--max-cases", type=int, default=None)
+        if stage == "capture":
+            sp.add_argument("--role", choices=("all", "encode", "decode", "monitor"), default="all")
+            sp.add_argument("--target", help="registered encoder, decoder or monitor ID for serial-GPU runs")
+        if stage == "oracle":
+            sp.add_argument("--target", help="single outsider decoder for sequential-GPU oracle calls")
         if stage == "plan":
             sp.add_argument("--encoders", nargs="+", required=True)
             sp.add_argument("--encoded-per-encoder", type=int, default=20)
@@ -451,11 +511,21 @@ def main(argv: list[str] | None = None) -> int:
         m = plan(a.workdir, a.config, a.endpoints, a.encoders, a.encoded_per_encoder, a.clean_per_encoder)
         print(f"Frozen {len(m['cases'])} cases, manifest {a.workdir / 'manifest.json'}")
     elif a.stage == "capture":
-        capture(a.workdir, a.config, a.endpoints, a.max_cases)
+        capture(a.workdir, a.config, a.endpoints, a.max_cases, a.role, a.target)
+    elif a.stage == "seal":
+        config, endpoints, manifest = planned(a.workdir, a.config, a.endpoints)
+        locked = seal_blind(a.workdir, config, endpoints, manifest)
+        print(f"Sealed {len(locked['cases'])} blind attempts in {a.workdir / 'blind_lock.json'}")
+    elif a.stage == "audit-template":
+        config, endpoints, manifest = planned(a.workdir, a.config, a.endpoints)
+        if a.audits_out.exists():
+            raise FileExistsError("audit output exists; do not replace reviewer work")
+        json_save(a.audits_out, review_template(a.workdir, config, endpoints, manifest))
+        print(f"Unreviewed template saved: {a.audits_out}")
     elif a.stage == "oracle":
-        oracle(a.workdir, a.config, a.endpoints, a.audits, a.max_cases)
+        oracle(a.workdir, a.config, a.endpoints, a.audits, a.max_cases, a.target)
     else:
-        result = finalize(a.workdir, a.config, a.audits, a.output)
+        result = finalize(a.workdir, a.config, a.audits, a.output, a.endpoints)
         print(json.dumps({"all_qualify": result["all_qualify"],
                           "all_covert_qualify": result["all_covert_qualify"],
                           "transcript": str(a.output)}, indent=2))

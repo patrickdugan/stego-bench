@@ -7,6 +7,7 @@ runners; the scorer consumes fingerprinted observations and never opens images.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from collections import Counter
@@ -316,10 +317,85 @@ def evaluate(config: dict[str, object], transcript: dict) -> tuple[dict, list[di
     return summary, rows
 
 
-def run_campaign(output: Path, config_path: Path, transcript_path: Path) -> dict:
+def verify_capture_manifest(transcript: dict, manifest_path: Path | None,
+                            blind_lock_path: Path | None) -> dict[str, str]:
+    """Bind every scored case to a frozen external capture manifest and lock.
+
+    This prevents a genuine capture transcript from quietly dropping failed
+    attempts after the fact. Legacy synthetic scorer fixtures remain valid and
+    are explicitly distinguished from provenance-verified live captures.
+    """
+    origin = transcript.get("origin")
+    if origin != "verified_image_schelling_capture_v2":
+        if manifest_path is not None or blind_lock_path is not None:
+            raise ValueError("provenance files may only accompany v2 capture transcripts")
+        return {"mode": "external_or_synthetic_unverified"}
+    if manifest_path is None or blind_lock_path is None:
+        raise ValueError("real capture must supply --manifest and --blind-lock")
+    manifest_bytes = manifest_path.read_bytes()
+    lock_bytes = blind_lock_path.read_bytes()
+    manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
+    blind_hash = hashlib.sha256(lock_bytes).hexdigest()
+    if transcript.get("manifest_sha256") != manifest_hash:
+        raise ValueError("frozen manifest SHA-256 mismatches transcript")
+    if transcript.get("blind_lock_sha256") != blind_hash:
+        raise ValueError("blind receipt SHA-256 mismatches transcript")
+    manifest = json.loads(manifest_bytes)
+    locked = json.loads(lock_bytes)
+    if manifest.get("fingerprint") != transcript.get("fingerprint"):
+        raise ValueError("config fingerprint mismatches frozen manifest")
+    if locked.get("fingerprint") != transcript.get("fingerprint"):
+        raise ValueError("config fingerprint mismatches blind lock")
+    if locked.get("manifest_sha256") != manifest_hash:
+        raise ValueError("blind lock does not cover frozen manifest")
+    if locked.get("endpoints_sha256") != manifest.get("endpoints_sha256"):
+        raise ValueError("blind lock endpoint specification changed")
+    planned = manifest.get("cases", [])
+    if not isinstance(planned, list) or not planned:
+        raise ValueError("empty frozen case roster")
+    expected = {}
+    for c in planned:
+        cid = c.get("case_id")
+        if not isinstance(cid, str) or cid in expected:
+            raise ValueError("duplicate/invalid manifest case ID")
+        expected[cid] = (c["encoder_model"], c["stego"], c["payload"])
+    observed = {}
+    for c in list(transcript.get("cases", [])) + list(transcript.get("capture_failures", [])):
+        cid = c["case_id"]
+        if cid in observed:
+            raise ValueError("duplicate case across successes and failures")
+        observed[cid] = (c["encoder_model"], c["stego"], c.get("payload"))
+        # The original failed-capture scorer records intentionally omit the
+        # secret. A validated failure still must match encoder and trial kind.
+        if "payload" not in c and cid in expected:
+            observed[cid] = (c["encoder_model"], c["stego"], expected[cid][2])
+    if expected != observed:
+        raise ValueError("scored cases do not match the complete preregistered trial roster")
+    evidence = locked.get("cases")
+    if not isinstance(evidence, dict) or set(evidence) != set(expected):
+        raise ValueError("blind lock has incomplete or extra cases")
+    for c in transcript.get("cases", []):
+        cell = evidence[c["case_id"]]
+        if cell.get("kind") != "rendered_png" or cell.get("png_sha256") != c["image_sha256"]:
+            raise ValueError("scored PNG differs from blind-locked PNG")
+    for c in transcript.get("capture_failures", []):
+        cell = evidence[c["case_id"]]
+        if cell.get("kind") != c["failure_kind"]:
+            raise ValueError("failed-case classification differs from blind lock")
+    return {
+        "mode": "manifest_and_blind_lock_verified",
+        "manifest_sha256": manifest_hash,
+        "blind_lock_sha256": blind_hash,
+    }
+
+
+def run_campaign(output: Path, config_path: Path, transcript_path: Path,
+                 manifest_path: Path | None = None, blind_lock_path: Path | None = None) -> dict:
     config = load_config(config_path)
     transcript = json.loads(Path(transcript_path).read_text(encoding="utf-8"))
+    provenance = verify_capture_manifest(transcript, manifest_path, blind_lock_path)
     summary, rows = evaluate(config, transcript)
+    summary["evidence_provenance"] = provenance
     output.mkdir(parents=True, exist_ok=True)
     paths = {"summary.json": output / "summary.json", "rows.csv": output / "rows.csv"}
     summary["transcript_sha256"] = sha256_file(transcript_path)
@@ -328,7 +404,11 @@ def run_campaign(output: Path, config_path: Path, transcript_path: Path) -> dict
     write_receipt(
         output, config_path, "image-schelling", paths,
         safety_boundary="Offline scoring of externally audited images and fresh-session model transcripts; no model or network calls",
-        extra={"input_transcript_sha256": summary["transcript_sha256"], "input_fingerprint": transcript["fingerprint"]},
+        extra={
+            "input_transcript_sha256": summary["transcript_sha256"],
+            "input_fingerprint": transcript["fingerprint"],
+            "evidence_provenance": provenance,
+        },
     )
     return summary
 
@@ -337,9 +417,11 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Score keyless model-specific image steganography")
     p.add_argument("--config", default="configs/stego_image_schelling.json")
     p.add_argument("--transcript", required=True, type=Path)
+    p.add_argument("--manifest", type=Path, help="frozen original manifest from capture plan")
+    p.add_argument("--blind-lock", type=Path, help="hash-only receipt produced by capture seal")
     p.add_argument("--output", default="output/stego_image_schelling", type=Path)
     a = p.parse_args(argv)
-    s = run_campaign(a.output, Path(a.config), a.transcript)
+    s = run_campaign(a.output, Path(a.config), a.transcript, a.manifest, a.blind_lock)
     print(json.dumps({"all_qualify": s["all_qualify"], "results": s["results"]}, indent=2, sort_keys=True))
     return 0
 
