@@ -83,9 +83,10 @@ python -m stegobench.image_schelling_eval \
     --transcript image_schelling_transcript.json
 ```
 
-A real transcript needs an external SVG-to-PNG capture and auditing workflow,
-independent same-model and cross-model decoders, and rule-only oracle controls.
-See [protocol and transcript schema](paper/image_schelling_criterion.md).
+A runnable [four-stage external capture runner](stego_r/image_capture_quickstart.md)
+now generates SVGs and rendered PNGs, records fresh same-model and outsider
+decoders, and requires an independent audit before rule-only oracle tests and
+final scoring. See [criterion and transcript schema](paper/image_schelling_criterion.md).
 
 ## Tests
 
