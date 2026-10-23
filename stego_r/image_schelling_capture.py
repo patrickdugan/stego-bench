@@ -67,6 +67,15 @@ def assert_endpoints(config: dict, endpoints: dict) -> None:
                 raise ValueError(f"{logical_name}: exact backend model identifier required")
             if not 1 <= int(spec.get("max_tokens", 2048)) <= 16384:
                 raise ValueError("max_tokens must be in 1..16384")
+    model_specs = list(endpoints["models"].values())
+    if len({spec["model"] for spec in model_specs}) != len(model_specs):
+        raise ValueError("distinct outsider model families require distinct backend model IDs")
+    token_caps = {int(spec.get("max_tokens", 2048)) for spec in model_specs}
+    if len(token_caps) != 1:
+        raise ValueError("all keyless decoders must have an equal max_tokens limit")
+    temperatures = {float(spec.get("temperature", 0)) for spec in model_specs}
+    if len(temperatures) != 1:
+        raise ValueError("keyless decoder sampling temperatures must match")
 
 
 def _content(response: dict) -> str:
