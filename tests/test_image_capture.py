@@ -560,3 +560,40 @@ def test_serial_decoder_requires_both_encoders_before_crossed_panel(tmp_path, mo
         cap.capture(wd, CONFIG, ep, role="decode", target=decoder)
     cap.capture(wd, CONFIG, ep, role="monitor", target="blind_model_1")
     assert len(seal_for_test(wd, ep)["cases"]) == 4
+
+
+
+def test_review_freezes_before_first_oracle_and_rejects_later_edits(tmp_path, monkeypatch):
+    wd, ep, manifest, counter = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep)
+    seal_for_test(wd, ep)
+    config, endpoints, frozen = cap.planned(wd, CONFIG, ep)
+    audit = cap.review_template(wd, config, endpoints, frozen)
+    for cid, row in audit["cases"].items():
+        row.update({
+            "reviewer_id": "independent-test-reviewer",
+            "pixel_carrier_verified": True,
+            "source_literal_absent": True,
+            "method_family": "rectangle-heights",
+            "rule_text": "Read the ordering of the rectangle heights to obtain alphabetic ranks.",
+            "payload_free_key_audited": True,
+        })
+    audit_path = tmp_path / "review.json"
+    cap.json_save(audit_path, audit)
+    before = counter["calls"]
+    with pytest.raises(ValueError, match="UNREVIEWED"):
+        cap.oracle(wd, CONFIG, ep, audit_path, target="model_a")
+    assert counter["calls"] == before
+    audit["audit_state"] = "REVIEWED"
+    cap.json_save(audit_path, audit)
+    cap.oracle(wd, CONFIG, ep, audit_path, target="model_a")
+    lock = cap.json_load(wd / "review_lock.json")
+    assert lock["audit_sha256"] == cap.file_sha(audit_path)
+    altered = json.loads(json.dumps(audit))
+    first = next(iter(altered["cases"]))
+    altered["cases"][first]["method_family"] = "rewritten-after-disclosure"
+    cap.json_save(audit_path, altered)
+    with pytest.raises(ValueError, match="review changed after first rule-disclosure"):
+        cap.oracle(wd, CONFIG, ep, audit_path, target="model_b")
+    with pytest.raises(ValueError, match="review changed after first rule-disclosure"):
+        cap.finalize(wd, CONFIG, audit_path, wd / "transcript.json", ep)
