@@ -183,15 +183,35 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
     path = workdir / "raw" / (cid + ".json")
     svg_path = workdir / "images" / (cid + ".svg")
     png_path = workdir / "images" / (cid + ".png")
+    failure_path = workdir / "raw" / (cid + ".failure.json")
+    if failure_path.exists():
+        f = json_load(failure_path)
+        if any(f.get(k) != c[k] for k in ("case_id", "stego", "encoder_model", "payload")):
+            raise ValueError(f"{cid}: failure record mismatches frozen manifest")
+        return {"capture_failed": True, **f}
     raw = json_load(path) if path.exists() else None
     if raw is None:
         prompt = ENCODE_PROMPT.format(message=c["payload"]) if c["stego"] else CLEAN_PROMPT
         enc = chat(endpoints["models"][c["encoder_model"]], prompt)
-        svg = extract_svg(enc["text"])
-        validate_svg(svg, c["payload"])
-        svg_path.parent.mkdir(parents=True, exist_ok=True)
-        svg_path.write_text(svg, encoding="utf-8")
-        image_hash = render_png(svg, png_path)
+        try:
+            svg = extract_svg(enc["text"])
+            validate_svg(svg, c["payload"])
+            svg_path.parent.mkdir(parents=True, exist_ok=True)
+            svg_path.write_text(svg, encoding="utf-8")
+            image_hash = render_png(svg, png_path)
+        except ValueError as exc:
+            # An invalid encoder artifact is a measured *failed attempt*.
+            # Keep its raw output and include it in the trial denominator.
+            # Transport/API exceptions instead stop the run for retry.
+            kind = "render_error" if svg_path.is_file() else "invalid_svg"
+            failure = {
+                **c, "capture_failed": True, "failure_kind": kind,
+                "failure_reason": str(exc),
+                "encoder_text_sha256": sha_bytes(enc["text"].encode("utf-8")),
+                "encoder_call": enc,
+            }
+            json_save(failure_path, failure)
+            return failure
         raw = {
             **c, "image_sha256": image_hash, "svg_sha256": sha_bytes(svg.encode("utf-8")),
             "encoder_call": enc, "source_literal_absent_auto": True,
@@ -232,7 +252,10 @@ def capture(workdir: Path, config_path: Path, endpoints_path: Path, max_cases: i
     todo = manifest["cases"] if max_cases is None else manifest["cases"][:max_cases]
     for i, c in enumerate(todo, 1):
         raw = capture_case(workdir, c, config, endpoints)
-        print(f"[{i}/{len(todo)}] {c['case_id']} PNG {raw['image_sha256'][:12]} blind panel complete")
+        if raw.get("capture_failed"):
+            print(f"[{i}/{len(todo)}] {c['case_id']} INVALID SVG attempt recorded ({raw['failure_kind']})")
+        else:
+            print(f"[{i}/{len(todo)}] {c['case_id']} PNG {raw['image_sha256'][:12]} blind panel complete")
     return len(todo)
 
 
@@ -249,20 +272,21 @@ def audits_for(workdir: Path, audits_path: Path) -> tuple[dict, dict]:
 def require_review(c: dict, audit: dict) -> None:
     if not c["stego"]:
         return
-    if not isinstance(audit, dict) or audit.get("pixel_carrier_verified") is not True:
+    if not isinstance(audit, dict) or type(audit.get("pixel_carrier_verified")) is not bool:
         raise ValueError(f"{c['case_id']}: independent pixel-carrier review required")
-    if audit.get("source_literal_absent") is not True or not str(audit.get("reviewer_id", "")).strip():
+    if type(audit.get("source_literal_absent")) is not bool or not str(audit.get("reviewer_id", "")).strip():
         raise ValueError(f"{c['case_id']}: independent SVG source review required")
     if not isinstance(audit.get("method_family"), str) or not audit["method_family"]:
         raise ValueError(f"{c['case_id']}: method family missing")
-    rule = audit.get("rule_text", "")
-    if not key_disclosure_safe(rule, c["payload"]):
-        raise ValueError(f"{c['case_id']}: rule disclosure includes target or lacks explanation")
-    if audit.get("payload_free_key_audited") is not True:
-        raise ValueError(f"{c['case_id']}: rule-only disclosure review required")
     verified = audit.get("verified_decoders")
     if not isinstance(verified, dict) or not all(type(v) is bool for v in verified.values()):
         raise ValueError(f"{c['case_id']}: explicit per-model decoder review required")
+    if audit["pixel_carrier_verified"] and audit["source_literal_absent"]:
+        rule = audit.get("rule_text", "")
+        if not key_disclosure_safe(rule, c["payload"]):
+            raise ValueError(f"{c['case_id']}: rule disclosure includes target or lacks explanation")
+        if audit.get("payload_free_key_audited") is not True:
+            raise ValueError(f"{c['case_id']}: rule-only disclosure review required")
 
 
 def oracle(workdir: Path, config_path: Path, endpoints_path: Path,
@@ -274,8 +298,15 @@ def oracle(workdir: Path, config_path: Path, endpoints_path: Path,
         todo = todo[:max_cases]
     for i, c in enumerate(todo, 1):
         cid = c["case_id"]
+        failure_path = workdir / "raw" / (cid + ".failure.json")
+        if failure_path.exists():
+            print(f"[{i}/{len(todo)}] {cid} skipped: failed SVG generation")
+            continue
         audit = audits.get(cid)
         require_review(c, audit)
+        if not (audit["pixel_carrier_verified"] and audit["source_literal_absent"]):
+            print(f"[{i}/{len(todo)}] {cid} skipped: no independently verified carrier")
+            continue
         raw = json_load(workdir / "raw" / (cid + ".json"))
         png = (workdir / "images" / (cid + ".png")).read_bytes()
         if sha_bytes(png) != raw["image_sha256"] or set(raw["decodes"]) != set(config["models"]):
@@ -303,8 +334,22 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path, output: Path) 
     if manifest["fingerprint"] != fingerprint(config):
         raise ValueError("config changed since pre-registration")
     records: list[dict] = []
+    failures: list[dict] = []
     for c in manifest["cases"]:
         cid = c["case_id"]
+        failure_path = workdir / "raw" / (cid + ".failure.json")
+        if failure_path.is_file():
+            f = json_load(failure_path)
+            if any(f.get(k) != c[k] for k in ("case_id", "encoder_model", "stego", "payload")):
+                raise ValueError(f"{cid}: failure record mismatches plan")
+            if sha_bytes(f["encoder_call"]["text"].encode("utf-8")) != f["encoder_text_sha256"]:
+                raise ValueError(f"{cid}: failure encoder response hash mismatch")
+            failures.append({
+                "case_id": cid, "encoder_model": c["encoder_model"],
+                "stego": c["stego"], "failure_kind": f["failure_kind"],
+                "encoder_text_sha256": f["encoder_text_sha256"],
+            })
+            continue
         path = workdir / "raw" / (cid + ".json")
         if not path.is_file():
             raise ValueError(f"{cid}: missing blind capture")
@@ -331,7 +376,8 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path, output: Path) 
             "prompt_id": config["decoder_prompt_id"],
         } for model in config["models"]]
         oracle_rows = []
-        if c["stego"]:
+        viable = bool(c["stego"] and review["pixel_carrier_verified"] and review["source_literal_absent"])
+        if viable:
             oracle_path = workdir / "raw" / (cid + ".oracles.json")
             if not oracle_path.is_file():
                 raise ValueError(f"{cid}: missing oracle evidence")
@@ -356,15 +402,16 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path, output: Path) 
             "case_id": cid, "encoder_model": c["encoder_model"], "stego": c["stego"],
             "payload": c["payload"], "input_type": "rendered_png",
             "shared_scheme": False, "image_sha256": raw["image_sha256"],
-            "source_literal_absent": True if c["stego"] else None,
-            "pixel_carrier_verified": True if c["stego"] else None,
+            "source_literal_absent": review["source_literal_absent"] if c["stego"] else None,
+            "pixel_carrier_verified": review["pixel_carrier_verified"] if c["stego"] else None,
             "method_family": review.get("method_family", "control"),
             "decodes": rows, "oracle_decodes": oracle_rows,
             "blind_monitor_scores": {
                 mon: raw["monitors"][mon]["score"] for mon in config["blind_monitors"]
             },
         })
-    transcript = {"fingerprint": manifest["fingerprint"], "cases": records}
+    transcript = {"fingerprint": manifest["fingerprint"],
+                  "cases": records, "capture_failures": failures}
     # Validate every provenance and case requirement before any output is written.
     summary, _ = evaluate(config, transcript)
     json_save(output, transcript)
