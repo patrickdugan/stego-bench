@@ -262,3 +262,134 @@ def test_image_without_verified_carrier_remains_in_denominator(tmp_path, monkeyp
     assert len(stegos) == 2
     assert all(not c["pixel_carrier_verified"] and not c["oracle_decodes"] for c in stegos)
     assert not result["all_qualify"]
+
+
+
+def test_serial_gpu_roles_collect_full_crossed_panel(tmp_path, monkeypatch):
+    wd, ep, manifest, counter = pilot(tmp_path, monkeypatch)
+    assert cap.capture(wd, CONFIG, ep, role="encode", target="model_a") == 2
+    assert cap.capture(wd, CONFIG, ep, role="encode", target="model_b") == 2
+    for model in ("model_a", "model_b", "model_c"):
+        assert cap.capture(wd, CONFIG, ep, role="decode", target=model) == 4
+    assert cap.capture(wd, CONFIG, ep, role="monitor", target="blind_model_1") == 4
+    assert counter["images"] == 4 and counter["calls"] == 20
+    lock = seal_for_test(wd, ep)
+    assert set(lock["cases"]) == {x["case_id"] for x in manifest["cases"]}
+    before = counter["calls"]
+    assert cap.capture_case  # runner remains an independent API
+    with pytest.raises(ValueError, match="sealed"):
+        cap.capture(wd, CONFIG, ep, role="decode", target="model_c")
+    assert counter["calls"] == before
+
+
+def test_seal_requires_every_decoding_and_monitor_cell(tmp_path, monkeypatch):
+    wd, ep, _, _ = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep, role="encode", target="model_a")
+    with pytest.raises(ValueError, match="incomplete|missing"):
+        seal_for_test(wd, ep)
+
+
+def test_seal_rejects_wrong_prompt_hash(tmp_path, monkeypatch):
+    wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep)
+    cid = manifest["cases"][0]["case_id"]
+    path = wd / "raw" / (cid + ".json")
+    raw = cap.json_load(path)
+    raw["decodes"]["model_a"]["response"]["prompt_sha256"] = "0" * 64
+    cap.json_save(path, raw)
+    with pytest.raises(ValueError, match="prompt_sha256"):
+        seal_for_test(wd, ep)
+
+
+def test_seal_rejects_rewritten_decoder_answer(tmp_path, monkeypatch):
+    wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep)
+    cid = manifest["cases"][0]["case_id"]
+    path = wd / "raw" / (cid + ".json")
+    raw = cap.json_load(path)
+    raw["decodes"]["model_a"]["answer"] = "forged secret"
+    cap.json_save(path, raw)
+    with pytest.raises(ValueError, match="differs from preserved raw"):
+        seal_for_test(wd, ep)
+
+
+def test_blind_lock_detects_modified_png_or_raw_response(tmp_path, monkeypatch):
+    wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep)
+    seal_for_test(wd, ep)
+    p = wd / "raw" / (manifest["cases"][0]["case_id"] + ".json")
+    altered = cap.json_load(p)
+    altered["decodes"]["model_a"]["response"]["text"] += "\nextra trailing content"
+    cap.json_save(p, altered)
+    config, endpoints, frozen = cap.planned(wd, CONFIG, ep)
+    with pytest.raises(ValueError, match="blind|response"):
+        cap.require_blind_lock(wd, config, endpoints, frozen)
+
+
+def test_audit_template_binds_png_and_cannot_auto_approve(tmp_path, monkeypatch):
+    wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep)
+    seal_for_test(wd, ep)
+    config, endpoints, frozen = cap.planned(wd, CONFIG, ep)
+    template = cap.review_template(wd, config, endpoints, frozen)
+    assert template["audit_state"] == "UNREVIEWED"
+    stego_ids = {c["case_id"] for c in manifest["cases"] if c["stego"]}
+    assert set(template["cases"]) == stego_ids
+    for cid, review in template["cases"].items():
+        assert review["pixel_carrier_verified"] is None
+        assert review["source_literal_absent"] is None
+        assert review["verified_decoders"] == {
+            "model_a": False, "model_b": False, "model_c": False
+        }
+        assert review["image_sha256"] == cap.json_load(wd / "raw" / (cid + ".json"))["image_sha256"]
+
+
+def test_model_identity_alias_must_be_pinned_before_capture(tmp_path, monkeypatch):
+    wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep)
+    cid = manifest["cases"][0]["case_id"]
+    path = wd / "raw" / (cid + ".json")
+    raw = cap.json_load(path)
+    raw["decodes"]["model_c"]["response"]["returned_model"] = "unexpected-model-alias"
+    cap.json_save(path, raw)
+    with pytest.raises(ValueError, match="backend reported"):
+        seal_for_test(wd, ep)
+
+
+def test_provenance_scorer_requires_whole_original_manifest(tmp_path, monkeypatch):
+    from stegobench.image_schelling_eval import run_campaign, verify_capture_manifest
+
+    wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep)
+    seal_for_test(wd, ep)
+    audit = {
+        "fingerprint": manifest["fingerprint"],
+        "blind_lock_sha256": cap.file_sha(wd / "blind_lock.json"), "cases": {},
+    }
+    for c in manifest["cases"]:
+        if c["stego"]:
+            audit["cases"][c["case_id"]] = {
+                "image_sha256": cap.json_load(wd / "raw" / (c["case_id"] + ".json"))["image_sha256"],
+                "reviewer_id": "independent-unverified", "pixel_carrier_verified": False,
+                "source_literal_absent": True, "method_family": "unverified",
+                "verified_decoders": {},
+            }
+    audits_path = tmp_path / "audits.json"
+    cap.json_save(audits_path, audit)
+    transcript_path = wd / "transcript.json"
+    cap.finalize(wd, CONFIG, audits_path, transcript_path, ep)
+    summary = run_campaign(tmp_path / "scored", CONFIG, transcript_path,
+                           wd / "manifest.json", wd / "blind_lock.json")
+    assert summary["evidence_provenance"]["mode"] == "manifest_and_blind_lock_verified"
+    original = cap.json_load(transcript_path)
+    with pytest.raises(ValueError, match="--manifest and --blind-lock"):
+        run_campaign(tmp_path / "without-manifest", CONFIG, transcript_path)
+    broken = dict(original)
+    broken["cases"] = original["cases"][:-1]
+    with pytest.raises(ValueError, match="complete preregistered trial roster"):
+        verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
+    broken = dict(original)
+    broken["cases"] = [dict(c) for c in original["cases"]]
+    broken["cases"][0]["payload"] = "forged payload"
+    with pytest.raises(ValueError, match="complete preregistered trial roster"):
+        verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
