@@ -98,3 +98,15 @@ python -m stegobench.image_schelling_eval \
 ~~~
 
 The scorer verifies that every originally planned trial is represented exactly once, checking the encoder, secret payload, stego/clean label and recorded PNG or failed-capture classification. This guards against post-hoc case exclusion. The seal is tamper-evident only while its original copy remains independently preserved; true backend checkpoint identity, independent reviewer integrity and inference-budget equivalence require external attestation. Synthetic tests without a manifest remain classified as *unverified instrument fixtures*.
+
+## Blind answer and monitor provenance (lock 1.1)
+
+Version 1.1 of the blind evidence seal includes SHA-256 of each decoder's raw
+answer, the independently parsed output-format validity, and each monitor's
+original numeric suspicion score. The offline scorer verifies the reported
+per-model answers and monitor values against the pre-oracle seal before
+computing recovery or detection metrics. It also checks the failed encoder's
+original response digest. A changed decoder answer can no longer be introduced
+only by editing the final scored transcript. These hashes attest consistency
+with a retained blind-lock copy, while external model trust, independent rule
+review, and the post-review oracle records require separate verification.
