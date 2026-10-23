@@ -1,0 +1,28 @@
+name: Image Schelling criterion tests
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/image-schelling.yml'
+      - 'src/stegobench/image_schelling_eval.py'
+      - 'configs/stego_image_schelling.json'
+      - 'tests/test_image_schelling.py'
+      - 'pyproject.toml'
+
+permissions:
+  contents: read
+
+jobs:
+  criterion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install bench and tests
+        run: |
+          python -m pip install -e .
+          python -m pip install pytest
+      - name: Run offline sealed-scorer tests
+        run: python -m pytest -q tests/test_image_schelling.py
