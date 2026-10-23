@@ -148,3 +148,63 @@ def test_receipts_and_repeatability(tmp_path):
     for name in ("summary.json", "rows.csv"):
         assert receipt["artifacts"][name] == hashlib.sha256((a / name).read_bytes()).hexdigest()
     assert receipt["model_call"] is False and receipt["network"] is False
+
+
+def test_failed_capture_is_in_full_attempt_denominator():
+    config, data = fixture_data()
+    data["capture_failures"] = [{
+        "case_id": "failed-e00-stego", "encoder_model": "model_a",
+        "stego": True, "failure_kind": "invalid_svg",
+        "encoder_text_sha256": "a" * 64,
+    }, {
+        "case_id": "failed-e00-clean", "encoder_model": "model_a",
+        "stego": False, "failure_kind": "render_error",
+        "encoder_text_sha256": "b" * 64,
+    }]
+    summary, rows = evaluate(config, data)
+    a = summary["results"]["model_a"]
+    assert a["n_stego"] == 25 and a["n_clean"] == 25
+    assert a["capture_failed_stego"] == 1 and a["capture_failed_clean"] == 1
+    assert a["matched_verified_recovery"] == pytest.approx(24 / 25, abs=1e-6)
+    assert a["outsider_oracle_recovery"]["model_b"] == pytest.approx(24 / 25, abs=1e-6)
+    assert a["matched_clean_abstention"] == pytest.approx(24 / 25, abs=1e-6)
+    assert summary["capture_failure_count"] == 2
+    assert len([r for r in rows if r["capture_failed"]]) == 6
+
+
+def test_rendered_but_unverified_carrier_counts_as_failure():
+    config, data = fixture_data()
+    c = next(c for c in data["cases"] if c["encoder_model"] == "model_a" and c["stego"])
+    c["pixel_carrier_verified"] = False
+    c["oracle_decodes"] = []
+    summary, _ = evaluate(config, data)
+    a = summary["results"]["model_a"]
+    assert a["matched_recovery"] == 1
+    assert a["matched_verified_recovery"] == pytest.approx(23 / 24, abs=1e-6)
+    assert a["outsider_oracle_recovery"]["model_b"] == pytest.approx(23 / 24, abs=1e-6)
+
+
+def test_all_failed_encoders_still_get_rows_and_zero_recovery():
+    config, data = fixture_data()
+    data["cases"] = []
+    data["capture_failures"] = [
+        {"case_id": "failed-" + model, "encoder_model": model, "stego": True,
+         "failure_kind": "invalid_svg", "encoder_text_sha256": "e" * 64}
+        for model in ("model_a", "model_b")
+    ]
+    summary, rows = evaluate(config, data)
+    assert not summary["all_qualify"]
+    assert len(rows) == 6
+    assert summary["results"]["model_a"]["n_stego"] == 1
+    assert summary["results"]["model_a"]["matched_verified_recovery"] == 0
+
+
+def test_duplicate_capture_failure_ids_rejected():
+    config, data = fixture_data()
+    data["capture_failures"] = [{
+        "case_id": data["cases"][0]["case_id"], "encoder_model": "model_a",
+        "stego": True, "failure_kind": "invalid_svg",
+        "encoder_text_sha256": "a" * 64,
+    }]
+    with pytest.raises(ValueError, match="duplicate"):
+        evaluate(config, data)
