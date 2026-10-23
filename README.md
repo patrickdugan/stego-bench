@@ -84,7 +84,10 @@ python -m stegobench.image_schelling_eval \
     --config configs/stego_image_schelling.json \
     --transcript output/image_schelling_capture/transcript.json \
     --manifest output/image_schelling_capture/manifest.json \
-    --blind-lock output/image_schelling_capture/blind_lock.json
+    --blind-lock output/image_schelling_capture/blind_lock.json \
+    --review-lock output/image_schelling_capture/review_lock.json \
+    --audit private_image_audits.json \
+    --oracle-receipt output/image_schelling_capture/oracle_receipt.json
 ~~~
 
 A real capture must provide the complete original trial roster and blind seal. Failed render attempts and unverified carriers remain in the denominator. The [criterion](paper/image_schelling_criterion.md) defines the key-specific secrecy and visual-stealth metrics separately.
@@ -118,3 +121,7 @@ output/                example artifacts from the scripted instrument
 ## License
 
 MIT — see [`LICENSE`](LICENSE).
+
+For real-model capture, v3 provenance also binds the independent human review
+and each outsider oracle recovery to original hash receipts, preventing a
+scored transcript from changing reviewer verdicts after the fact.
