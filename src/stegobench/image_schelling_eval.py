@@ -62,8 +62,8 @@ def _validate(config: dict[str, object], data: dict) -> list[dict]:
     if data.get("fingerprint") != fingerprint(config):
         raise ValueError("transcript fingerprint mismatch")
     cases = data.get("cases")
-    if not isinstance(cases, list) or not cases:
-        raise ValueError("expected a nonempty cases list")
+    if not isinstance(cases, list) or not (cases or data.get("capture_failures")):
+        raise ValueError("expected rendered cases or failed capture attempts")
     ids, hashes = set(), set()
     seen_encoders: set[str] = set()
     failures = data.get("capture_failures", [])
