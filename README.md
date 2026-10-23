@@ -89,6 +89,11 @@ python -m stegobench.image_schelling_eval \
 
 A real capture must provide the complete original trial roster and blind seal. Failed render attempts and unverified carriers remain in the denominator. The [criterion](paper/image_schelling_criterion.md) defines the key-specific secrecy and visual-stealth metrics separately.
 
+Blind-lock schema 1.1 also freezes each decoder answer hash and monitor score.
+The scorer rejects altered answers in a purported real-model transcript. For
+serial GPUs, `--check-active-model` verifies the loaded `/v1/models` alias
+before a role-scoped capture or oracle batch begins.
+
 ## Tests
 
 ```bash

@@ -81,6 +81,35 @@ def assert_endpoints(config: dict, endpoints: dict) -> None:
         raise ValueError("keyless decoder sampling temperatures must match")
 
 
+def check_active_model(spec: dict) -> str:
+    """Check /v1/models before any paid role-scoped trial call.
+
+    This is an early identity guard for serial model swapping. The response
+    verifies the serving alias, while the blind seal separately verifies the
+    model identifier reported by every completion response.
+    """
+    headers = {"Accept": "application/json"}
+    env_name = spec.get("api_key_env")
+    api_key = os.environ.get(env_name, "") if env_name else ""
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    request = urllib.request.Request(
+        str(spec["base_url"]).rstrip("/") + "/models",
+        headers=headers, method="GET",
+    )
+    with urllib.request.urlopen(request, timeout=20) as response:
+        raw = json.loads(response.read().decode("utf-8"))
+    model_records = raw.get("data")
+    if not isinstance(model_records, list):
+        raise ValueError("active /v1/models returned no model list")
+    ids = {item["id"] for item in model_records
+           if isinstance(item, dict) and isinstance(item.get("id"), str)}
+    expected = spec["model"]
+    if expected not in ids:
+        raise ValueError(f"active model mismatch: expected {expected!r}; server advertised {sorted(ids)!r}")
+    return expected
+
+
 def _content(response: dict) -> str:
     choices = response.get("choices", [])
     if not choices:
@@ -274,7 +303,7 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict,
 
 def capture(workdir: Path, config_path: Path, endpoints_path: Path,
             max_cases: int | None = None, role: str = "all",
-            target: str | None = None) -> int:
+            target: str | None = None, check_model: bool = False) -> int:
     config, endpoints, manifest = planned(workdir, config_path, endpoints_path)
     if (workdir / "blind_lock.json").exists():
         raise ValueError("blind evidence is sealed; new capture calls are forbidden")
@@ -285,6 +314,12 @@ def capture(workdir: Path, config_path: Path, endpoints_path: Path,
         raise ValueError("all-role capture does not accept a target")
     if role != "all" and target not in roster:
         raise ValueError(f"{role} target must be registered in frozen config")
+    if check_model:
+        if role == "all":
+            raise ValueError("--check-active-model requires one role and one target")
+        group = "monitors" if role == "monitor" else "models"
+        actual = check_active_model(endpoints[group][target])
+        print(f"Preflight verified active backend: {actual}")
     todo = [c for c in manifest["cases"] if role != "encode" or c["encoder_model"] == target]
     if max_cases is not None:
         if max_cases < 1:
@@ -333,12 +368,17 @@ def require_review(c: dict, audit: dict) -> None:
 
 def oracle(workdir: Path, config_path: Path, endpoints_path: Path,
            audits_path: Path, max_cases: int | None = None,
-           target: str | None = None) -> int:
+           target: str | None = None, check_model: bool = False) -> int:
     config, endpoints, manifest = planned(workdir, config_path, endpoints_path)
     require_blind_lock(workdir, config, endpoints, manifest)
     _, audits = audits_for(workdir, audits_path)
     if target is not None and target not in config["models"]:
         raise ValueError("oracle target must be registered as a model")
+    if check_model:
+        if target is None:
+            raise ValueError("--check-active-model requires --target in the oracle phase")
+        actual = check_active_model(endpoints["models"][target])
+        print(f"Preflight verified active oracle backend: {actual}")
     todo = [c for c in manifest["cases"] if c["stego"]]
     if max_cases is not None:
         todo = todo[:max_cases]
@@ -495,6 +535,8 @@ def main(argv: list[str] | None = None) -> int:
             sp.add_argument("--audits-out", type=Path, required=True)
         if stage in ("capture", "oracle"):
             sp.add_argument("--max-cases", type=int, default=None)
+            sp.add_argument("--check-active-model", action="store_true",
+                            help="verify loaded /v1/models alias before processing any trials")
         if stage == "capture":
             sp.add_argument("--role", choices=("all", "encode", "decode", "monitor"), default="all")
             sp.add_argument("--target", help="registered encoder, decoder or monitor ID for serial-GPU runs")
@@ -511,7 +553,8 @@ def main(argv: list[str] | None = None) -> int:
         m = plan(a.workdir, a.config, a.endpoints, a.encoders, a.encoded_per_encoder, a.clean_per_encoder)
         print(f"Frozen {len(m['cases'])} cases, manifest {a.workdir / 'manifest.json'}")
     elif a.stage == "capture":
-        capture(a.workdir, a.config, a.endpoints, a.max_cases, a.role, a.target)
+        capture(a.workdir, a.config, a.endpoints, a.max_cases, a.role, a.target,
+                a.check_active_model)
     elif a.stage == "seal":
         config, endpoints, manifest = planned(a.workdir, a.config, a.endpoints)
         locked = seal_blind(a.workdir, config, endpoints, manifest)
@@ -523,7 +566,8 @@ def main(argv: list[str] | None = None) -> int:
         json_save(a.audits_out, review_template(a.workdir, config, endpoints, manifest))
         print(f"Unreviewed template saved: {a.audits_out}")
     elif a.stage == "oracle":
-        oracle(a.workdir, a.config, a.endpoints, a.audits, a.max_cases, a.target)
+        oracle(a.workdir, a.config, a.endpoints, a.audits, a.max_cases, a.target,
+               a.check_active_model)
     else:
         result = finalize(a.workdir, a.config, a.audits, a.output, a.endpoints)
         print(json.dumps({"all_qualify": result["all_qualify"],
