@@ -460,3 +460,65 @@ def test_serial_outsider_oracle_keeps_sealed_blind_calls_unchanged(tmp_path, mon
             }
     assert (wd / "blind_lock.json").read_bytes() == lock_before
     cap.finalize(wd, CONFIG, audit_file, wd / "transcript.json", ep)
+
+
+
+def test_active_model_preflight_queries_registered_alias(monkeypatch):
+    spec = endpoints_example()["models"]["model_a"]
+    visited = []
+
+    class Reply:
+        def __init__(self, obj):
+            self.blob = json.dumps(obj).encode("utf-8")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return self.blob
+
+    def fake_urlopen(request, timeout):
+        visited.append((request.full_url, request.get_method(), timeout))
+        return Reply({"object": "list", "data": [{"id": "model_a", "object": "model"}]})
+
+    monkeypatch.setattr(cap.urllib.request, "urlopen", fake_urlopen)
+    assert cap.check_active_model(spec) == "model_a"
+    assert visited == [("http://127.0.0.1:8080/v1/models", "GET", 20)]
+
+    def wrong_model(request, timeout):
+        return Reply({"data": [{"id": "model_b"}]})
+
+    monkeypatch.setattr(cap.urllib.request, "urlopen", wrong_model)
+    with pytest.raises(ValueError, match="active model mismatch"):
+        cap.check_active_model(spec)
+
+
+def test_serial_preflight_rejects_wrong_gpu_model_before_spending_calls(tmp_path, monkeypatch):
+    wd, ep, _, counter = pilot(tmp_path, monkeypatch)
+
+    def deny_alias(spec):
+        raise ValueError("active model mismatch")
+
+    monkeypatch.setattr(cap, "check_active_model", deny_alias)
+    with pytest.raises(ValueError, match="active model mismatch"):
+        cap.capture(wd, CONFIG, ep, role="encode", target="model_a", check_model=True)
+    assert counter["calls"] == 0
+    with pytest.raises(ValueError, match="one role and one target"):
+        cap.capture(wd, CONFIG, ep, role="all", check_model=True)
+    assert counter["calls"] == 0
+
+
+def test_serial_decoder_requires_both_encoders_before_crossed_panel(tmp_path, monkeypatch):
+    wd, ep, _, counter = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep, role="encode", target="model_a")
+    assert counter["calls"] == 2
+    with pytest.raises(ValueError, match="encode this case before"):
+        cap.capture(wd, CONFIG, ep, role="decode", target="model_a")
+    cap.capture(wd, CONFIG, ep, role="encode", target="model_b")
+    for decoder in ("model_a", "model_b", "model_c"):
+        cap.capture(wd, CONFIG, ep, role="decode", target=decoder)
+    cap.capture(wd, CONFIG, ep, role="monitor", target="blind_model_1")
+    assert len(seal_for_test(wd, ep)["cases"]) == 4
