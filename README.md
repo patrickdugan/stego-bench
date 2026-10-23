@@ -60,7 +60,8 @@ figures/*.png}` and prints a short acceptance brief. A campaign raises
 Suite 4 consumes externally audited rendered-PNG transcripts and has synthetic
 scorer tests. It intentionally makes no image-generation or model calls within
 the sealed kernel. This adds an outsider-selectivity axis alongside the existing
-text-channel frontiers.
+text-channel frontiers. Reports separately score selective rule secrecy
+and covert appearance to a blind monitor.
 
 ## Attach a model (message passing)
 
