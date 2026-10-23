@@ -116,6 +116,15 @@ def seal_for_test(wd, endpoints_path):
     return cap.seal_blind(wd, config, endpoints, manifest)
 
 
+def verify_v3(transcript, workdir, audit_path):
+    from stegobench.image_schelling_eval import verify_capture_manifest
+    return verify_capture_manifest(
+        transcript,
+        workdir / "manifest.json", workdir / "blind_lock.json",
+        workdir / "review_lock.json", audit_path, workdir / "oracle_receipt.json",
+    )
+
+
 def test_full_pilot_exercises_real_pngs_and_sealed_scorer(tmp_path, monkeypatch):
     wd, ep, manifest, count = pilot(tmp_path, monkeypatch)
     assert cap.capture(wd, CONFIG, ep) == 4
@@ -242,11 +251,11 @@ def test_invalid_encoder_svg_is_preserved_as_failed_trial(tmp_path, monkeypatch)
     from stegobench.image_schelling_eval import verify_capture_manifest
 
     captured = cap.json_load(wd / "transcript.json")
-    verify_capture_manifest(captured, wd / "manifest.json", wd / "blind_lock.json")
+    verify_v3(captured, wd, audit_path)
     corrupted = json.loads(json.dumps(captured))
     corrupted["capture_failures"][0]["encoder_text_sha256"] = "f" * 64
     with pytest.raises(ValueError, match="failed encoder response hash"):
-        verify_capture_manifest(corrupted, wd / "manifest.json", wd / "blind_lock.json")
+        verify_v3(corrupted, wd, audit_path)
 
 
 def test_image_without_verified_carrier_remains_in_denominator(tmp_path, monkeypatch):
@@ -387,21 +396,24 @@ def test_provenance_scorer_requires_whole_original_manifest(tmp_path, monkeypatc
     cap.json_save(audits_path, audit)
     transcript_path = wd / "transcript.json"
     cap.finalize(wd, CONFIG, audits_path, transcript_path, ep)
-    summary = run_campaign(tmp_path / "scored", CONFIG, transcript_path,
-                           wd / "manifest.json", wd / "blind_lock.json")
-    assert summary["evidence_provenance"]["mode"] == "manifest_and_blind_lock_verified"
+    summary = run_campaign(
+        tmp_path / "scored", CONFIG, transcript_path,
+        wd / "manifest.json", wd / "blind_lock.json",
+        wd / "review_lock.json", audits_path, wd / "oracle_receipt.json",
+    )
+    assert summary["evidence_provenance"]["mode"] == "manifest_blind_review_oracle_verified"
     original = cap.json_load(transcript_path)
     with pytest.raises(ValueError, match="--manifest and --blind-lock"):
         run_campaign(tmp_path / "without-manifest", CONFIG, transcript_path)
     broken = dict(original)
     broken["cases"] = original["cases"][:-1]
     with pytest.raises(ValueError, match="complete preregistered trial roster"):
-        verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
+        verify_v3(broken, wd, audits_path)
     broken = dict(original)
     broken["cases"] = [dict(c) for c in original["cases"]]
     broken["cases"][0]["payload"] = "forged payload"
     with pytest.raises(ValueError, match="complete preregistered trial roster"):
-        verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
+        verify_v3(broken, wd, audits_path)
 
     blind_receipt = cap.json_load(wd / "blind_lock.json")
     cid = original["cases"][0]["case_id"]
@@ -413,13 +425,29 @@ def test_provenance_scorer_requires_whole_original_manifest(tmp_path, monkeypatc
     positive = next(c for c in broken["cases"] if c["stego"])
     positive["decodes"][0]["answer"] = positive["payload"]
     with pytest.raises(ValueError, match="blind-locked decoder answer"):
-        verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
+        verify_v3(broken, wd, audits_path)
 
     # A dishonest monitor can otherwise make an obvious signal look covert.
     broken = json.loads(json.dumps(original))
     broken["cases"][0]["blind_monitor_scores"]["blind_model_1"] = 0.99
     with pytest.raises(ValueError, match="scored monitor value"):
-        verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
+        verify_v3(broken, wd, audits_path)
+
+    # Review flags affect the *verified* secret criterion and must be frozen.
+    broken = json.loads(json.dumps(original))
+    positive = next(c for c in broken["cases"] if c["stego"])
+    positive["decodes"][0]["rule_verified"] = True
+    with pytest.raises(ValueError, match="rule verification differs"):
+        verify_v3(broken, wd, audits_path)
+
+    broken = json.loads(json.dumps(original))
+    positive = next(c for c in broken["cases"] if c["stego"])
+    positive["method_family"] = "forged_encoding"
+    with pytest.raises(ValueError, match="rule family differs"):
+        verify_v3(broken, wd, audits_path)
+
+    with pytest.raises(ValueError, match="--review-lock --audit --oracle-receipt"):
+        verify_capture_manifest(original, wd / "manifest.json", wd / "blind_lock.json")
 
 
 
@@ -460,6 +488,16 @@ def test_serial_outsider_oracle_keeps_sealed_blind_calls_unchanged(tmp_path, mon
             }
     assert (wd / "blind_lock.json").read_bytes() == lock_before
     cap.finalize(wd, CONFIG, audit_file, wd / "transcript.json", ep)
+    transcript = cap.json_load(wd / "transcript.json")
+    assert transcript["origin"] == "verified_image_schelling_capture_v3"
+    assert cap.json_load(wd / "review_lock.json")["audit_sha256"] == cap.file_sha(audit_file)
+    verify_v3(transcript, wd, audit_file)
+
+    corrupted = json.loads(json.dumps(transcript))
+    positive = next(c for c in corrupted["cases"] if c["stego"])
+    positive["oracle_decodes"][0]["answer"] = positive["payload"]
+    with pytest.raises(ValueError, match="outsider-oracle answer"):
+        verify_v3(corrupted, wd, audit_file)
 
 
 
