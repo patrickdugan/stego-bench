@@ -141,7 +141,7 @@ def verify_blind(workdir: Path, config: dict, endpoints: dict, manifest: dict) -
             "decoder_answers": decoder_evidence, "blind_monitors": monitor_evidence,
         }
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "fingerprint": manifest["fingerprint"],
         "manifest_sha256": file_sha(workdir / "manifest.json"),
         "endpoints_sha256": manifest["endpoints_sha256"],
