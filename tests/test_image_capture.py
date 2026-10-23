@@ -178,7 +178,7 @@ def test_oracle_requires_review_and_keeps_blind_sessions_separate(tmp_path, monk
     seal_for_test(wd, ep)
     cap.json_save(file, {"fingerprint": manifest["fingerprint"],
                          "blind_lock_sha256": cap.file_sha(wd / "blind_lock.json"), "cases": {}})
-    with pytest.raises(ValueError, match="independent pixel-carrier review"):
+    with pytest.raises(ValueError, match="review must contain exactly all rendered stego cases"):
         cap.oracle(wd, CONFIG, ep, file)
 
 
