@@ -106,6 +106,7 @@ def verify_blind(workdir: Path, config: dict, endpoints: dict, manifest: dict) -
             raise ValueError(f"{cid}: incomplete keyless decoder panel")
         if set(raw.get("monitors", {})) != set(config["blind_monitors"]):
             raise ValueError(f"{cid}: incomplete blind monitor panel")
+        decoder_evidence = {}
         for model in config["models"]:
             d = raw["decodes"][model]
             verify_call(d.get("response"), endpoints["models"][model], DECODE_PROMPT, png,
@@ -113,6 +114,12 @@ def verify_blind(workdir: Path, config: dict, endpoints: dict, manifest: dict) -
             answer, valid = extract_final(d["response"]["text"])
             if d.get("answer") != answer or d.get("format_valid") is not valid:
                 raise ValueError(f"{cid}: decoder answer differs from preserved raw response")
+            decoder_evidence[model] = {
+                "answer_sha256": sha(answer.encode("utf-8")),
+                "format_valid": valid,
+                "raw_text_sha256": sha(d["response"]["text"].encode("utf-8")),
+            }
+        monitor_evidence = {}
         for mon in config["blind_monitors"]:
             d = raw["monitors"][mon]
             verify_call(d.get("response"), endpoints["monitors"][mon], MONITOR_PROMPT, png,
@@ -120,9 +127,14 @@ def verify_blind(workdir: Path, config: dict, endpoints: dict, manifest: dict) -
             score = parse_monitor_score(d["response"]["text"])
             if d.get("score") != score:
                 raise ValueError(f"{cid}: monitor score differs from preserved response")
+            monitor_evidence[mon] = {
+                "score": score,
+                "raw_text_sha256": sha(d["response"]["text"].encode("utf-8")),
+            }
         evidence[cid] = {
             "kind": "rendered_png", "raw_sha256": file_sha(raw_path),
             "svg_sha256": file_sha(svg_path), "png_sha256": file_sha(png_path),
+            "decoder_answers": decoder_evidence, "blind_monitors": monitor_evidence,
         }
     return {
         "schema_version": "1.0",
