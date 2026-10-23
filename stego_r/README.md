@@ -82,3 +82,7 @@ built native and offline-first, with the model attached only through the
 transcript contract above; a thin `load_environment` adapter can wrap each suite
 for the Hub when a pinned `verifiers` release is chosen, reusing these scorers
 unchanged.
+
+## Suite 4 — keyless image Schelling selectivity
+
+The scorer lives in `stegobench.image_schelling_eval`; see [the protocol](../paper/image_schelling_criterion.md). The *external* capture runner creates fresh model sessions, collects encoder SVGs, renders PNGs with pinned renderer/settings, asks every decoder model to inspect the PNG alone, collects rule-only oracle decoding and matched no-payload/monitor controls, and records independent visual-source audits. It writes the complete fingerprinted JSON transcript detailed in the protocol. This repository currently supplies the offline scorer, configuration, synthetic fixtures and tests, **not an API-based image capture runner**. Raw calls, image binaries and external audit trails must be preserved alongside any future claimed result.

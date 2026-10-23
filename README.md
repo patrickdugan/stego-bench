@@ -14,6 +14,10 @@ after a paraphrase defense):
 3. **Trained channels** — the capacity-vs-detectability **frontier** of learned
    operating points, and whether a frequency-matched channel **dominates** a
    naive one.
+4. **Keyless visual Schelling secrecy** — whether fresh same-model instances
+   independently converge on a visual code that other model families cannot
+   discover under matched effort, while those outsiders can decode if shown
+   the rule. See [Suite 4](paper/image_schelling_criterion.md).
 
 See [`paper/stego_bench.md`](paper/stego_bench.md) for motivation and results.
 
@@ -23,7 +27,7 @@ The `stegobench` package is a sealed, offline-first measurement instrument. It
 imports no model library, opens no socket, and reads no clock; every artifact is
 a pure function of a config and its seeds, serialized as canonical JSON and
 hashed into a witness receipt that asserts `model_call: false` and
-`network: false`. Each campaign first runs a deterministic **scripted
+`network: false`. Text-based campaigns first run a deterministic **scripted
 instrument** (reference codecs / organisms / channels) and **acceptance gates**
 that assert exactly where each reference lands on the frontier — so a real
 small-model floor reads as a real floor, not a broken scorer.
@@ -53,6 +57,12 @@ Each writes `output/<suite>/{summary.json, rows.csv, witness_receipt.json,
 figures/*.png}` and prints a short acceptance brief. A campaign raises
 `AssertionError` if any scripted-acceptance gate fails.
 
+Suite 4 consumes externally audited rendered-PNG transcripts and has synthetic
+scorer tests. It intentionally makes no image-generation or model calls within
+the sealed kernel. This adds an outsider-selectivity axis alongside the existing
+text-channel frontiers. Reports separately score selective rule secrecy
+and covert appearance to a blind monitor.
+
 ## Attach a model (message passing)
 
 ```bash
@@ -64,6 +74,18 @@ python -m stegobench.message_eval --transcript transcript.json
 
 `--dry-run` emits the scripted transcript with no model call, as a smoke test of
 the file contract.
+
+## Score keyless image steganography (suite 4)
+
+```bash
+python -m stegobench.image_schelling_eval \
+    --config configs/stego_image_schelling.json \
+    --transcript image_schelling_transcript.json
+```
+
+A real transcript needs an external SVG-to-PNG capture and auditing workflow,
+independent same-model and cross-model decoders, and rule-only oracle controls.
+See [protocol and transcript schema](paper/image_schelling_criterion.md).
 
 ## Tests
 
@@ -78,10 +100,10 @@ fingerprinted model-attach seam.
 ## Layout
 
 ```
-src/stegobench/        sealed kernel + three suite runners (message/reasoning/channel)_eval
-configs/               one JSON config per suite
+src/stegobench/        sealed kernel + four suite scorers (including image_schelling_eval)
+configs/               JSON configs for all four suites
 stego_r/               out-of-process model runners (the only code that may touch a model/network)
-paper/stego_bench.md   motivation, method, reference-channel results
+paper/stego_bench.md   motivation, method, reference-channel results and Suite 4 protocol
 tests/                 acceptance + reproducibility tests
 output/                example artifacts from the scripted instrument
 ```
