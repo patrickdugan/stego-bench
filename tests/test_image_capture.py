@@ -239,6 +239,15 @@ def test_invalid_encoder_svg_is_preserved_as_failed_trial(tmp_path, monkeypatch)
     assert summary["results"]["model_a"]["n_stego"] == 1
     assert len(cap.json_load(wd / "transcript.json")["cases"]) == 3
 
+    from stegobench.image_schelling_eval import verify_capture_manifest
+
+    captured = cap.json_load(wd / "transcript.json")
+    verify_capture_manifest(captured, wd / "manifest.json", wd / "blind_lock.json")
+    corrupted = json.loads(json.dumps(captured))
+    corrupted["capture_failures"][0]["encoder_text_sha256"] = "f" * 64
+    with pytest.raises(ValueError, match="failed encoder response hash"):
+        verify_capture_manifest(corrupted, wd / "manifest.json", wd / "blind_lock.json")
+
 
 def test_image_without_verified_carrier_remains_in_denominator(tmp_path, monkeypatch):
     wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
@@ -392,6 +401,24 @@ def test_provenance_scorer_requires_whole_original_manifest(tmp_path, monkeypatc
     broken["cases"] = [dict(c) for c in original["cases"]]
     broken["cases"][0]["payload"] = "forged payload"
     with pytest.raises(ValueError, match="complete preregistered trial roster"):
+        verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
+
+    blind_receipt = cap.json_load(wd / "blind_lock.json")
+    cid = original["cases"][0]["case_id"]
+    assert blind_receipt["cases"][cid]["decoder_answers"]["model_a"]["answer_sha256"]
+    assert blind_receipt["cases"][cid]["blind_monitors"]["blind_model_1"]["score"] == 0.5
+
+    # A forged same-family success must not acquire the authentic blind seal.
+    broken = json.loads(json.dumps(original))
+    positive = next(c for c in broken["cases"] if c["stego"])
+    positive["decodes"][0]["answer"] = positive["payload"]
+    with pytest.raises(ValueError, match="blind-locked decoder answer"):
+        verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
+
+    # A dishonest monitor can otherwise make an obvious signal look covert.
+    broken = json.loads(json.dumps(original))
+    broken["cases"][0]["blind_monitor_scores"]["blind_model_1"] = 0.99
+    with pytest.raises(ValueError, match="scored monitor value"):
         verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
 
 
