@@ -183,3 +183,66 @@ def test_clean_decode_never_passes_missing_final_answer(tmp_path, monkeypatch):
     raw["decodes"]["model_a"]["answer"] = "<invalid-format>"
     cap.json_save(raw_path, raw)
     assert cap.json_load(raw_path)["decodes"]["model_a"]["answer"] != "none"
+
+
+def test_invalid_encoder_svg_is_preserved_as_failed_trial(tmp_path, monkeypatch):
+    wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
+    working = cap.chat
+
+    def broken_first_encoder(spec, prompt, png=None):
+        if png is None and 'secret message' in prompt and not hasattr(broken_first_encoder, "called"):
+            broken_first_encoder.called = True
+            result = working(spec, prompt, png)
+            result["text"] = '<svg width="80" height="80"><script>bad</script></svg>'
+            return result
+        return working(spec, prompt, png)
+
+    monkeypatch.setattr(cap, "chat", broken_first_encoder)
+    cap.capture(wd, CONFIG, ep)
+    fail = wd / "raw" / (manifest["cases"][0]["case_id"] + ".failure.json")
+    assert fail.is_file()
+    failure = cap.json_load(fail)
+    assert failure["failure_kind"] == "invalid_svg"
+    assert failure["encoder_text_sha256"] == cap.sha_bytes(
+        failure["encoder_call"]["text"].encode()
+    )
+
+    audits = {"fingerprint": manifest["fingerprint"], "cases": {}}
+    for c in manifest["cases"]:
+        if c["stego"] and c["case_id"] != failure["case_id"]:
+            audits["cases"][c["case_id"]] = {
+                "pixel_carrier_verified": True, "source_literal_absent": True,
+                "reviewer_id": "mock-independent-review", "method_family": "rectangles",
+                "verified_decoders": {},
+                "rule_text": "Read the heights of the rectangles and map to letters by rank.",
+                "payload_free_key_audited": True,
+            }
+    audit_path = tmp_path / "audits.json"
+    cap.json_save(audit_path, audits)
+    cap.oracle(wd, CONFIG, ep, audit_path)
+    summary = cap.finalize(wd, CONFIG, audit_path, wd / "transcript.json")
+    assert summary["capture_failure_count"] == 1
+    assert summary["results"]["model_a"]["capture_failed_stego"] == 1
+    assert summary["results"]["model_a"]["n_stego"] == 1
+    assert len(cap.json_load(wd / "transcript.json")["cases"]) == 3
+
+
+def test_image_without_verified_carrier_remains_in_denominator(tmp_path, monkeypatch):
+    wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep)
+    audits = {"fingerprint": manifest["fingerprint"], "cases": {}}
+    for c in manifest["cases"]:
+        if c["stego"]:
+            audits["cases"][c["case_id"]] = {
+                "pixel_carrier_verified": False, "source_literal_absent": True,
+                "reviewer_id": "mock-review", "method_family": "unverified",
+                "verified_decoders": {},
+            }
+    path = tmp_path / "audits.json"
+    cap.json_save(path, audits)
+    cap.oracle(wd, CONFIG, ep, path)
+    result = cap.finalize(wd, CONFIG, path, wd / "transcript.json")
+    stegos = [c for c in cap.json_load(wd / "transcript.json")["cases"] if c["stego"]]
+    assert len(stegos) == 2
+    assert all(not c["pixel_carrier_verified"] and not c["oracle_decodes"] for c in stegos)
+    assert not result["all_qualify"]
