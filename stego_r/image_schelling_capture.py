@@ -186,8 +186,13 @@ def plan(workdir: Path, config_path: Path, endpoints_path: Path,
     return manifest
 
 
-def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
-    """Checkpoint image, each blind decoder, and each blind monitor separately."""
+def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict,
+                 role: str = "all", target: str | None = None) -> dict:
+    """Checkpoint image and selected blind calls; never infer a different model.
+
+    In serial mode the GPU hosts one vision model at a time. An encoder phase
+    creates PNGs, then decoder and monitor phases consume those frozen bytes.
+    """
     cid = c["case_id"]
     path = workdir / "raw" / (cid + ".json")
     svg_path = workdir / "images" / (cid + ".svg")
@@ -200,6 +205,8 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
         return {"capture_failed": True, **f}
     raw = json_load(path) if path.exists() else None
     if raw is None:
+        if role in ("decode", "monitor"):
+            raise ValueError(f"{cid}: encode this case before using a decoder/monitor role")
         prompt = ENCODE_PROMPT.format(message=c["payload"]) if c["stego"] else CLEAN_PROMPT
         enc = chat(endpoints["models"][c["encoder_model"]], prompt)
         try:
@@ -236,7 +243,11 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
     png = png_path.read_bytes()
     if sha_bytes(svg.encode()) != raw["svg_sha256"] or sha_bytes(png) != raw["image_sha256"]:
         raise ValueError(f"{cid}: image bytes changed after capture")
+    if role == "encode":
+        return raw
     for model_id in config["models"]:
+        if role == "monitor" or (role == "decode" and model_id != target):
+            continue
         if model_id in raw["decodes"]:
             continue
         response = chat(endpoints["models"][model_id], DECODE_PROMPT, png)
@@ -246,6 +257,8 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
         }
         json_save(path, raw)
     for monitor_id in config["blind_monitors"]:
+        if role == "decode" or (role == "monitor" and monitor_id != target):
+            continue
         if monitor_id in raw["monitors"]:
             continue
         response = chat(endpoints["monitors"][monitor_id], MONITOR_PROMPT, png)
@@ -256,15 +269,28 @@ def capture_case(workdir: Path, c: dict, config: dict, endpoints: dict) -> dict:
     return raw
 
 
-def capture(workdir: Path, config_path: Path, endpoints_path: Path, max_cases: int | None = None) -> int:
+def capture(workdir: Path, config_path: Path, endpoints_path: Path,
+            max_cases: int | None = None, role: str = "all",
+            target: str | None = None) -> int:
     config, endpoints, manifest = planned(workdir, config_path, endpoints_path)
-    todo = manifest["cases"] if max_cases is None else manifest["cases"][:max_cases]
+    if role not in ("all", "encode", "decode", "monitor"):
+        raise ValueError("unsupported capture role")
+    roster = config["blind_monitors"] if role == "monitor" else config["models"]
+    if role == "all" and target is not None:
+        raise ValueError("all-role capture does not accept a target")
+    if role != "all" and target not in roster:
+        raise ValueError(f"{role} target must be registered in frozen config")
+    todo = [c for c in manifest["cases"] if role != "encode" or c["encoder_model"] == target]
+    if max_cases is not None:
+        if max_cases < 1:
+            raise ValueError("max_cases must be positive")
+        todo = todo[:max_cases]
     for i, c in enumerate(todo, 1):
-        raw = capture_case(workdir, c, config, endpoints)
+        raw = capture_case(workdir, c, config, endpoints, role=role, target=target)
         if raw.get("capture_failed"):
             print(f"[{i}/{len(todo)}] {c['case_id']} INVALID SVG attempt recorded ({raw['failure_kind']})")
         else:
-            print(f"[{i}/{len(todo)}] {c['case_id']} PNG {raw['image_sha256'][:12]} blind panel complete")
+            print(f"[{i}/{len(todo)}] {c['case_id']} PNG {raw['image_sha256'][:12]} {role} phase complete")
     return len(todo)
 
 
@@ -440,6 +466,9 @@ def main(argv: list[str] | None = None) -> int:
             sp.add_argument("--audits", type=Path, required=True)
         if stage in ("capture", "oracle"):
             sp.add_argument("--max-cases", type=int, default=None)
+        if stage == "capture":
+            sp.add_argument("--role", choices=("all", "encode", "decode", "monitor"), default="all")
+            sp.add_argument("--target", help="registered encoder, decoder or monitor ID for serial-GPU runs")
         if stage == "plan":
             sp.add_argument("--encoders", nargs="+", required=True)
             sp.add_argument("--encoded-per-encoder", type=int, default=20)
@@ -451,7 +480,7 @@ def main(argv: list[str] | None = None) -> int:
         m = plan(a.workdir, a.config, a.endpoints, a.encoders, a.encoded_per_encoder, a.clean_per_encoder)
         print(f"Frozen {len(m['cases'])} cases, manifest {a.workdir / 'manifest.json'}")
     elif a.stage == "capture":
-        capture(a.workdir, a.config, a.endpoints, a.max_cases)
+        capture(a.workdir, a.config, a.endpoints, a.max_cases, a.role, a.target)
     elif a.stage == "oracle":
         oracle(a.workdir, a.config, a.endpoints, a.audits, a.max_cases)
     else:
