@@ -94,7 +94,10 @@ python -m stegobench.image_schelling_eval \
   --config configs/stego_image_schelling.json \
   --transcript output/image_schelling_capture/transcript.json \
   --manifest output/image_schelling_capture/manifest.json \
-  --blind-lock output/image_schelling_capture/blind_lock.json
+  --blind-lock output/image_schelling_capture/blind_lock.json \
+  --review-lock output/image_schelling_capture/review_lock.json \
+  --audit private_image_audits.json \
+  --oracle-receipt output/image_schelling_capture/oracle_receipt.json
 ~~~
 
 The scorer verifies that every originally planned trial is represented exactly once, checking the encoder, secret payload, stego/clean label and recorded PNG or failed-capture classification. This guards against post-hoc case exclusion. The seal is tamper-evident only while its original copy remains independently preserved; true backend checkpoint identity, independent reviewer integrity and inference-budget equivalence require external attestation. Synthetic tests without a manifest remain classified as *unverified instrument fixtures*.
@@ -110,3 +113,9 @@ original response digest. A changed decoder answer can no longer be introduced
 only by editing the final scored transcript. These hashes attest consistency
 with a retained blind-lock copy, while external model trust, independent rule
 review, and the post-review oracle records require separate verification.
+
+## Independent review and oracle evidence freeze (capture v3)
+
+The first rule-disclosure request requires a complete PNG-bound human audit, with the template's `audit_state` changed from `UNREVIEWED` to `REVIEWED`. A pre-oracle `review_lock.json` pins its exact SHA-256 and the original blind-lock hash. Later edits to the review are rejected, including edits to the visual method or model-specific verification flags.
+
+Finalization checks the original post-disclosure responses and writes a separate `oracle_receipt.json`, recording the hashed outsider answers and the disclosed rule hashes for every independently verified carrier. The v3 scorer refuses real transcripts missing the audit, review lock, or oracle receipt. Its reported provenance mode is `manifest_blind_review_oracle_verified`. This verifies consistency of the stored measurements and review claims, while the scientific correctness of the pixel derivation remains the independent human reviewer's responsibility.
