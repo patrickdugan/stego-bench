@@ -83,7 +83,11 @@ def verify_blind(workdir: Path, config: dict, endpoints: dict, manifest: dict) -
                 raise ValueError(f"{cid}: failed-case encoder text hash changed")
             if failure.get("failure_kind") not in ("invalid_svg", "render_error"):
                 raise ValueError(f"{cid}: invalid failure kind")
-            evidence[cid] = {"kind": failure["failure_kind"], "raw_sha256": file_sha(failure_path)}
+            evidence[cid] = {
+                "kind": failure["failure_kind"],
+                "raw_sha256": file_sha(failure_path),
+                "encoder_text_sha256": failure["encoder_text_sha256"],
+            }
             continue
         if not raw_path.exists():
             raise ValueError(f"{cid}: blind capture incomplete, missing encoder output")
