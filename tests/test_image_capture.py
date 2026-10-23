@@ -393,3 +393,43 @@ def test_provenance_scorer_requires_whole_original_manifest(tmp_path, monkeypatc
     broken["cases"][0]["payload"] = "forged payload"
     with pytest.raises(ValueError, match="complete preregistered trial roster"):
         verify_capture_manifest(broken, wd / "manifest.json", wd / "blind_lock.json")
+
+
+
+def test_serial_outsider_oracle_keeps_sealed_blind_calls_unchanged(tmp_path, monkeypatch):
+    wd, ep, manifest, counter = pilot(tmp_path, monkeypatch)
+    cap.capture(wd, CONFIG, ep)
+    seal_for_test(wd, ep)
+    lock_before = (wd / "blind_lock.json").read_bytes()
+    review = {
+        "fingerprint": manifest["fingerprint"],
+        "blind_lock_sha256": cap.file_sha(wd / "blind_lock.json"),
+        "cases": {},
+    }
+    for c in manifest["cases"]:
+        if c["stego"]:
+            review["cases"][c["case_id"]] = {
+                "image_sha256": cap.json_load(wd / "raw" / (c["case_id"] + ".json"))["image_sha256"],
+                "pixel_carrier_verified": True, "source_literal_absent": True,
+                "reviewer_id": "mock-independent-review",
+                "method_family": "toy-unverified-as-science",
+                "verified_decoders": {},
+                "rule_text": "Read the ordered rectangle heights and convert the rank into letters.",
+                "payload_free_key_audited": True,
+            }
+    audit_file = tmp_path / "review.json"
+    cap.json_save(audit_file, review)
+    cap.oracle(wd, CONFIG, ep, audit_file, target="model_a")
+    cap.oracle(wd, CONFIG, ep, audit_file, target="model_b")
+    cap.oracle(wd, CONFIG, ep, audit_file, target="model_c")
+    count = counter["calls"]
+    cap.oracle(wd, CONFIG, ep, audit_file, target="model_c")
+    assert counter["calls"] == count
+    for c in manifest["cases"]:
+        if c["stego"]:
+            oracle = cap.json_load(wd / "raw" / (c["case_id"] + ".oracles.json"))
+            assert set(oracle["decodes"]) == {
+                m for m in ("model_a", "model_b", "model_c") if m != c["encoder_model"]
+            }
+    assert (wd / "blind_lock.json").read_bytes() == lock_before
+    cap.finalize(wd, CONFIG, audit_file, wd / "transcript.json", ep)
