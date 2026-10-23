@@ -373,6 +373,8 @@ def freeze_review(workdir: Path, manifest: dict, lock: dict,
     The lock is a hash commitment to the submitted human audit, not a claim
     that its visual or rule judgments were correct.
     """
+    if json_load(audits_path).get("audit_state") == "UNREVIEWED":
+        raise ValueError("review template is still UNREVIEWED; reviewer must approve the completed audit")
     expected = {
         c["case_id"] for c in manifest["cases"]
         if c["stego"] and lock["cases"][c["case_id"]]["kind"] == "rendered_png"
