@@ -228,7 +228,8 @@ def evaluate(config: dict[str, object], transcript: dict) -> tuple[dict, list[di
             })
     by_encoder: dict[str, dict] = {}
     all_gates: dict[str, bool] = {}
-    for enc in sorted({c["encoder_model"] for c in cases}):
+    for enc in sorted({c["encoder_model"] for c in cases} |
+                      {f["encoder_model"] for f in failures}):
         own = cells[enc][enc]
         n = len(own)
         outsiders = {dec: cells[enc][dec] for dec in models if dec != enc}
