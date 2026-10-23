@@ -342,6 +342,8 @@ def verify_capture_manifest(transcript: dict, manifest_path: Path | None,
         raise ValueError("blind receipt SHA-256 mismatches transcript")
     manifest = json.loads(manifest_bytes)
     locked = json.loads(lock_bytes)
+    if locked.get("schema_version") != "1.1":
+        raise ValueError("v2 real capture requires blind-lock schema version 1.1 with answer digests")
     if manifest.get("fingerprint") != transcript.get("fingerprint"):
         raise ValueError("config fingerprint mismatches frozen manifest")
     if locked.get("fingerprint") != transcript.get("fingerprint"):
