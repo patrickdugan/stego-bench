@@ -1,0 +1,38 @@
+{
+  "models": {
+    "model_a": {
+      "base_url": "http://127.0.0.1:8080/v1",
+      "model": "REPLACE_WITH_VISION_MODEL_A",
+      "max_tokens": 2048,
+      "temperature": 0,
+      "timeout_seconds": 180,
+      "api_key_env": "VISION_API_KEY_A"
+    },
+    "model_b": {
+      "base_url": "http://127.0.0.1:8081/v1",
+      "model": "REPLACE_WITH_VISION_MODEL_B",
+      "max_tokens": 2048,
+      "temperature": 0,
+      "timeout_seconds": 180,
+      "api_key_env": "VISION_API_KEY_B"
+    },
+    "model_c": {
+      "base_url": "http://127.0.0.1:8082/v1",
+      "model": "REPLACE_WITH_VISION_MODEL_C",
+      "max_tokens": 2048,
+      "temperature": 0,
+      "timeout_seconds": 180,
+      "api_key_env": "VISION_API_KEY_C"
+    }
+  },
+  "monitors": {
+    "blind_model_1": {
+      "base_url": "http://127.0.0.1:8083/v1",
+      "model": "REPLACE_WITH_BLIND_MONITOR",
+      "max_tokens": 64,
+      "temperature": 0,
+      "timeout_seconds": 180,
+      "api_key_env": "VISION_MONITOR_API_KEY"
+    }
+  }
+}
