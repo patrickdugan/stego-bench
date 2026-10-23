@@ -29,3 +29,9 @@ prompts.json
 stego_r/adapters/
 *.adapter/
 adapter_*/
+
+# Suite 4 private image runs, raw model exchanges, and local credentials
+endpoints.image_schelling.local.json
+private_image_audits.json
+output/image_schelling_capture/
+output/image_schelling_eval/
