@@ -318,7 +318,10 @@ def evaluate(config: dict[str, object], transcript: dict) -> tuple[dict, list[di
 
 
 def verify_capture_manifest(transcript: dict, manifest_path: Path | None,
-                            blind_lock_path: Path | None) -> dict[str, str]:
+                            blind_lock_path: Path | None,
+                            review_lock_path: Path | None = None,
+                            audit_path: Path | None = None,
+                            oracle_receipt_path: Path | None = None) -> dict[str, str]:
     """Bind every scored case to a frozen external capture manifest and lock.
 
     This prevents a genuine capture transcript from quietly dropping failed
@@ -326,12 +329,18 @@ def verify_capture_manifest(transcript: dict, manifest_path: Path | None,
     are explicitly distinguished from provenance-verified live captures.
     """
     origin = transcript.get("origin")
-    if origin != "verified_image_schelling_capture_v2":
-        if manifest_path is not None or blind_lock_path is not None:
-            raise ValueError("provenance files may only accompany v2 capture transcripts")
+    if origin == "verified_image_schelling_capture_v2":
+        raise ValueError("legacy v2 capture needs re-finalization with v3 review/oracle receipts")
+    if origin != "verified_image_schelling_capture_v3":
+        if any(p is not None for p in (
+            manifest_path, blind_lock_path, review_lock_path, audit_path, oracle_receipt_path
+        )):
+            raise ValueError("provenance files require a v3 capture transcript")
         return {"mode": "external_or_synthetic_unverified"}
     if manifest_path is None or blind_lock_path is None:
         raise ValueError("real capture must supply --manifest and --blind-lock")
+    if review_lock_path is None or audit_path is None or oracle_receipt_path is None:
+        raise ValueError("real capture requires --review-lock --audit --oracle-receipt")
     manifest_bytes = manifest_path.read_bytes()
     lock_bytes = blind_lock_path.read_bytes()
     manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
@@ -413,18 +422,91 @@ def verify_capture_manifest(transcript: dict, manifest_path: Path | None,
             raise ValueError("failed-case classification differs from blind lock")
         if cell.get("encoder_text_sha256") != c.get("encoder_text_sha256"):
             raise ValueError(f"{cid}: failed encoder response hash differs from blind lock")
+    audit_bytes = audit_path.read_bytes()
+    review_bytes = review_lock_path.read_bytes()
+    oracle_bytes = oracle_receipt_path.read_bytes()
+    audit_hash = hashlib.sha256(audit_bytes).hexdigest()
+    review_hash = hashlib.sha256(review_bytes).hexdigest()
+    oracle_hash = hashlib.sha256(oracle_bytes).hexdigest()
+    if (transcript.get("review_lock_sha256") != review_hash
+            or transcript.get("audit_sha256") != audit_hash
+            or transcript.get("oracle_receipt_sha256") != oracle_hash):
+        raise ValueError("post-review evidence digest differs from transcript")
+    review_lock = json.loads(review_bytes)
+    audit = json.loads(audit_bytes)
+    receipt = json.loads(oracle_bytes)
+    if review_lock.get("schema_version") != "1.0" or receipt.get("schema_version") != "1.0":
+        raise ValueError("unrecognized review/oracle receipt schema")
+    for obj in (review_lock, receipt):
+        if obj.get("fingerprint") != transcript["fingerprint"]:
+            raise ValueError("post-review fingerprint mismatch")
+        if obj.get("manifest_sha256") != manifest_hash or obj.get("blind_lock_sha256") != blind_hash:
+            raise ValueError("post-review evidence does not bind to the original blind capture")
+    if (review_lock.get("audit_sha256") != audit_hash
+            or receipt.get("audit_sha256") != audit_hash
+            or receipt.get("review_lock_sha256") != review_hash):
+        raise ValueError("oracle evidence differs from the original frozen review")
+    if (audit.get("fingerprint") != transcript["fingerprint"]
+            or audit.get("blind_lock_sha256") != blind_hash):
+        raise ValueError("independent review is bound to another trial or blind lock")
+    audits = audit.get("cases", {})
+    witness = receipt.get("oracle_answers")
+    if not isinstance(audits, dict) or not isinstance(witness, dict):
+        raise ValueError("review and oracle evidence must be keyed by case ID")
+    stego_ids = {c["case_id"] for c in transcript.get("cases", []) if c["stego"]}
+    if set(audits) != stego_ids or set(witness) != stego_ids:
+        raise ValueError("review/oracle receipt does not cover all rendered stego cases")
+    for c in transcript.get("cases", []):
+        if not c["stego"]:
+            continue
+        cid = c["case_id"]
+        review = audits[cid]
+        if (review.get("image_sha256") != c["image_sha256"]
+                or type(review.get("source_literal_absent")) is not bool
+                or type(review.get("pixel_carrier_verified")) is not bool
+                or c["source_literal_absent"] != review["source_literal_absent"]
+                or c["pixel_carrier_verified"] != review["pixel_carrier_verified"]
+                or c["method_family"] != review.get("method_family")):
+            raise ValueError(f"{cid}: scored carrier or rule family differs from independent review")
+        if not isinstance(review.get("reviewer_id"), str) or not review["reviewer_id"].strip():
+            raise ValueError(f"{cid}: independent reviewer identity missing")
+        verified = review.get("verified_decoders")
+        if not isinstance(verified, dict):
+            raise ValueError(f"{cid}: missing reviewer decoder verdicts")
+        for row in c["decodes"]:
+            dec = row["decoder_model"]
+            if row["rule_verified"] is not bool(verified.get(dec, False)):
+                raise ValueError(f"{cid}: rule verification differs from frozen independent review")
+        by_model = witness[cid]
+        expected_oracle = {d["decoder_model"]: d for d in c["oracle_decodes"]}
+        if not isinstance(by_model, dict) or set(by_model) != set(expected_oracle):
+            raise ValueError(f"{cid}: scored outsider-oracle panel differs from saved receipt")
+        for model, d in expected_oracle.items():
+            locked_row = by_model[model]
+            if (not isinstance(locked_row, dict)
+                    or locked_row.get("answer_sha256") != hashlib.sha256(d["answer"].encode("utf-8")).hexdigest()
+                    or locked_row.get("rule_sha256") != hashlib.sha256(review["rule_text"].encode("utf-8")).hexdigest()):
+                raise ValueError(f"{cid}: scored outsider-oracle answer or rule differs from oracle receipt")
     return {
-        "mode": "manifest_and_blind_lock_verified",
+        "mode": "manifest_blind_review_oracle_verified",
         "manifest_sha256": manifest_hash,
         "blind_lock_sha256": blind_hash,
+        "review_lock_sha256": review_hash,
+        "audit_sha256": audit_hash,
+        "oracle_receipt_sha256": oracle_hash,
     }
 
 
 def run_campaign(output: Path, config_path: Path, transcript_path: Path,
-                 manifest_path: Path | None = None, blind_lock_path: Path | None = None) -> dict:
+                 manifest_path: Path | None = None, blind_lock_path: Path | None = None,
+                 review_lock_path: Path | None = None, audit_path: Path | None = None,
+                 oracle_receipt_path: Path | None = None) -> dict:
     config = load_config(config_path)
     transcript = json.loads(Path(transcript_path).read_text(encoding="utf-8"))
-    provenance = verify_capture_manifest(transcript, manifest_path, blind_lock_path)
+    provenance = verify_capture_manifest(
+        transcript, manifest_path, blind_lock_path,
+        review_lock_path, audit_path, oracle_receipt_path
+    )
     summary, rows = evaluate(config, transcript)
     summary["evidence_provenance"] = provenance
     output.mkdir(parents=True, exist_ok=True)
@@ -450,9 +532,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--transcript", required=True, type=Path)
     p.add_argument("--manifest", type=Path, help="frozen original manifest from capture plan")
     p.add_argument("--blind-lock", type=Path, help="hash-only receipt produced by capture seal")
+    p.add_argument("--review-lock", type=Path, help="frozen reviewed-audit hash preceding oracle calls")
+    p.add_argument("--audit", type=Path, help="complete independent reviewed PNG and rule judgments")
+    p.add_argument("--oracle-receipt", type=Path, help="hashes of original outsider oracle answers")
     p.add_argument("--output", default="output/stego_image_schelling", type=Path)
     a = p.parse_args(argv)
-    s = run_campaign(a.output, Path(a.config), a.transcript, a.manifest, a.blind_lock)
+    s = run_campaign(
+        a.output, Path(a.config), a.transcript, a.manifest, a.blind_lock,
+        a.review_lock, a.audit, a.oracle_receipt
+    )
     print(json.dumps({"all_qualify": s["all_qualify"], "results": s["results"]}, indent=2, sort_keys=True))
     return 0
 
