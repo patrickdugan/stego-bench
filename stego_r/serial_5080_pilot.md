@@ -85,6 +85,8 @@ python stego_r/image_schelling_capture.py audit-template --workdir output/image_
 
 Have an independent reviewer fill `private_image_audits.json` after examining each encoded SVG and PNG. Every unreviewed entry defaults to `pixel_carrier_verified: null`, `source_literal_absent: null`, and false decoder verification flags. The reviewer must inspect the pixels and state whether a real encoding exists, give a general rule free of target plaintext, and verify decoder explanations. The template binds each review to an exact PNG hash. Never mark these fields true automatically.
 
+After completing the review, change the top-level `audit_state` from `UNREVIEWED` to `REVIEWED`. The first outsider oracle invocation now freezes the **entire** review file in `review_lock.json`, before disclosing a single rule. Every subsequent oracle call requires its SHA-256 to remain unchanged. Edits after disclosure need a new preregistered experiment.
+
 Run the outsider oracle only after the review, again one model at a time. Model A acts as outsider to B-encoded images, B as outsider to A-encoded images, and C is an outsider to both.
 
 ~~~powershell
@@ -103,15 +105,17 @@ Then finalize. Both the capture runner and scorer validate original evidence has
 ~~~powershell
 python stego_r/image_schelling_capture.py finalize --workdir output/image_schelling_capture_smoke --endpoints endpoints.image_schelling.local.json --audits private_image_audits.json --output output/image_schelling_capture_smoke/transcript.json
 
-python -m stegobench.image_schelling_eval --config configs/stego_image_schelling.json --transcript output/image_schelling_capture_smoke/transcript.json --manifest output/image_schelling_capture_smoke/manifest.json --blind-lock output/image_schelling_capture_smoke/blind_lock.json --output output/image_schelling_eval_smoke
+python -m stegobench.image_schelling_eval --config configs/stego_image_schelling.json --transcript output/image_schelling_capture_smoke/transcript.json --manifest output/image_schelling_capture_smoke/manifest.json --blind-lock output/image_schelling_capture_smoke/blind_lock.json --review-lock output/image_schelling_capture_smoke/review_lock.json --audit private_image_audits.json --oracle-receipt output/image_schelling_capture_smoke/oracle_receipt.json --output output/image_schelling_eval_smoke
 ~~~
 
 The blind receipt also seals a SHA-256 of each decoded answer and an exact monitor score. The offline scorer rechecks these values against every reported per-model result, so rewriting an answer into an apparent success invalidates the evidence rather than inflating the recovery rate.
 
-The reported metric `evidence_provenance.mode` should read `manifest_and_blind_lock_verified`. For genuine image-capture transcripts, the scorer rejects absent manifest/lock paths and any mismatch in planned trial IDs, payloads, encoder identities or PNG hashes. Such a seal is **tamper-evident within the retained copies**; store the lock and model weights hashes separately in a timestamped immutable repository or lab notebook if establishing independent provenance matters.
+The reported metric `evidence_provenance.mode` should read `manifest_blind_review_oracle_verified`. For genuine image-capture transcripts, the scorer rejects absent manifest/lock paths and any mismatch in planned trial IDs, payloads, encoder identities or PNG hashes. Such a seal is **tamper-evident within the retained copies**; store the lock and model weights hashes separately in a timestamped immutable repository or lab notebook if establishing independent provenance matters.
 
 ## Graduate to a real study
 
 Repeat `plan` with a **new** directory and `--encoded-per-encoder 20 --clean-per-encoder 20`, and run the same stages without `--max-cases`. That freezes 80 planned images, which each keyless decoder examines once, followed by independent oracle runs on verified images. Keep raw outputs and both positive and negative controls. Distinct quantized models are operationally different systems; their uneven visual reasoning ability and token usage must enter the interpretation. The outsider rule-only oracle helps distinguish weak general image comprehension from a model-specific rule discovery failure.
 
 These models are **suggested runnable baselines**. Expected real decoding and selectivity rates are unknown until the experiment is actually captured, audited and scored. No remote inference requests have been initiated by creating this guide.
+
+The completed capture now emits v3 evidence, whose sealed scorer verifies the reviewer flags and every outsider oracle answer against the retained original audit and post-review receipt. `oracle_receipt.json` hashes the recovered outsider messages. For an evidence-grade writeup, archive `blind_lock.json`, `review_lock.json`, `oracle_receipt.json` and the audit file independently after each stage. This is a provenance check on reported measurements; determining whether the human reviewer correctly identified an encoding still requires a real expert audit.
