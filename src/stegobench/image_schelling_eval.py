@@ -375,13 +375,42 @@ def verify_capture_manifest(transcript: dict, manifest_path: Path | None,
     if not isinstance(evidence, dict) or set(evidence) != set(expected):
         raise ValueError("blind lock has incomplete or extra cases")
     for c in transcript.get("cases", []):
-        cell = evidence[c["case_id"]]
+        cid = c["case_id"]
+        cell = evidence[cid]
         if cell.get("kind") != "rendered_png" or cell.get("png_sha256") != c["image_sha256"]:
             raise ValueError("scored PNG differs from blind-locked PNG")
+        locked_answers = cell.get("decoder_answers")
+        transcript_answers = c.get("decodes")
+        if not isinstance(locked_answers, dict) or not isinstance(transcript_answers, list):
+            raise ValueError(f"{cid}: missing locked decoder evidence")
+        if len(transcript_answers) != len(locked_answers):
+            raise ValueError(f"{cid}: incomplete scored decoder panel")
+        seen_decoders: set[str] = set()
+        for record in transcript_answers:
+            decoder = record.get("decoder_model")
+            if decoder in seen_decoders or decoder not in locked_answers:
+                raise ValueError(f"{cid}: scored decoder differs from blind lock")
+            seen_decoders.add(decoder)
+            answer = record.get("answer")
+            if not isinstance(answer, str) or hashlib.sha256(answer.encode("utf-8")).hexdigest() != locked_answers[decoder].get("answer_sha256"):
+                raise ValueError(f"{cid}: scored answer differs from blind-locked decoder answer")
+        locked_monitors = cell.get("blind_monitors")
+        scored_monitors = c.get("blind_monitor_scores")
+        if (not isinstance(locked_monitors, dict)
+                or not isinstance(scored_monitors, dict)
+                or set(locked_monitors) != set(scored_monitors)):
+            raise ValueError(f"{cid}: scored monitor panel differs from blind lock")
+        for monitor, score in scored_monitors.items():
+            if (type(score) not in (int, float) or not isinstance(locked_monitors[monitor], dict)
+                    or score != locked_monitors[monitor].get("score")):
+                raise ValueError(f"{cid}: scored monitor value differs from blind lock")
     for c in transcript.get("capture_failures", []):
-        cell = evidence[c["case_id"]]
+        cid = c["case_id"]
+        cell = evidence[cid]
         if cell.get("kind") != c["failure_kind"]:
             raise ValueError("failed-case classification differs from blind lock")
+        if cell.get("encoder_text_sha256") != c.get("encoder_text_sha256"):
+            raise ValueError(f"{cid}: failed encoder response hash differs from blind lock")
     return {
         "mode": "manifest_and_blind_lock_verified",
         "manifest_sha256": manifest_hash,
