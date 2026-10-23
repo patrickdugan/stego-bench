@@ -111,6 +111,11 @@ def pilot(tmp_path, monkeypatch):
     return wd, ep, manifest, count
 
 
+def seal_for_test(wd, endpoints_path):
+    config, endpoints, manifest = cap.planned(wd, CONFIG, endpoints_path)
+    return cap.seal_blind(wd, config, endpoints, manifest)
+
+
 def test_full_pilot_exercises_real_pngs_and_sealed_scorer(tmp_path, monkeypatch):
     wd, ep, manifest, count = pilot(tmp_path, monkeypatch)
     assert cap.capture(wd, CONFIG, ep) == 4
@@ -121,10 +126,13 @@ def test_full_pilot_exercises_real_pngs_and_sealed_scorer(tmp_path, monkeypatch)
     cap.capture(wd, CONFIG, ep)
     assert count["calls"] == before  # resume without paid calls
 
-    audits = {"fingerprint": manifest["fingerprint"], "cases": {}}
+    seal_for_test(wd, ep)
+    audits = {"fingerprint": manifest["fingerprint"],
+              "blind_lock_sha256": cap.file_sha(wd / "blind_lock.json"), "cases": {}}
     for c in manifest["cases"]:
         if c["stego"]:
             audits["cases"][c["case_id"]] = {
+                "image_sha256": cap.json_load(wd / "raw" / (c["case_id"] + ".json"))["image_sha256"],
                 "pixel_carrier_verified": True, "source_literal_absent": True,
                 "reviewer_id": "synthetic-test-only", "method_family": "rectangles",
                 "rule_text": "Read the ranked heights of the rectangles to obtain the letters.",
@@ -135,7 +143,7 @@ def test_full_pilot_exercises_real_pngs_and_sealed_scorer(tmp_path, monkeypatch)
     cap.json_save(audit_path, audits)
     assert cap.oracle(wd, CONFIG, ep, audit_path) == 2
     output = wd / "transcript.json"
-    summary = cap.finalize(wd, CONFIG, audit_path, output)
+    summary = cap.finalize(wd, CONFIG, audit_path, output, ep)
     assert summary["all_qualify"] is False
     data = cap.json_load(output)
     assert len(data["cases"]) == 4
@@ -158,7 +166,9 @@ def test_oracle_requires_review_and_keeps_blind_sessions_separate(tmp_path, monk
     wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
     cap.capture(wd, CONFIG, ep)
     file = tmp_path / "audit.json"
-    cap.json_save(file, {"fingerprint": manifest["fingerprint"], "cases": {}})
+    seal_for_test(wd, ep)
+    cap.json_save(file, {"fingerprint": manifest["fingerprint"],
+                         "blind_lock_sha256": cap.file_sha(wd / "blind_lock.json"), "cases": {}})
     with pytest.raises(ValueError, match="independent pixel-carrier review"):
         cap.oracle(wd, CONFIG, ep, file)
 
@@ -207,10 +217,13 @@ def test_invalid_encoder_svg_is_preserved_as_failed_trial(tmp_path, monkeypatch)
         failure["encoder_call"]["text"].encode()
     )
 
-    audits = {"fingerprint": manifest["fingerprint"], "cases": {}}
+    seal_for_test(wd, ep)
+    audits = {"fingerprint": manifest["fingerprint"],
+              "blind_lock_sha256": cap.file_sha(wd / "blind_lock.json"), "cases": {}}
     for c in manifest["cases"]:
         if c["stego"] and c["case_id"] != failure["case_id"]:
             audits["cases"][c["case_id"]] = {
+                "image_sha256": cap.json_load(wd / "raw" / (c["case_id"] + ".json"))["image_sha256"],
                 "pixel_carrier_verified": True, "source_literal_absent": True,
                 "reviewer_id": "mock-independent-review", "method_family": "rectangles",
                 "verified_decoders": {},
@@ -220,7 +233,7 @@ def test_invalid_encoder_svg_is_preserved_as_failed_trial(tmp_path, monkeypatch)
     audit_path = tmp_path / "audits.json"
     cap.json_save(audit_path, audits)
     cap.oracle(wd, CONFIG, ep, audit_path)
-    summary = cap.finalize(wd, CONFIG, audit_path, wd / "transcript.json")
+    summary = cap.finalize(wd, CONFIG, audit_path, wd / "transcript.json", ep)
     assert summary["capture_failure_count"] == 1
     assert summary["results"]["model_a"]["capture_failed_stego"] == 1
     assert summary["results"]["model_a"]["n_stego"] == 1
@@ -230,10 +243,13 @@ def test_invalid_encoder_svg_is_preserved_as_failed_trial(tmp_path, monkeypatch)
 def test_image_without_verified_carrier_remains_in_denominator(tmp_path, monkeypatch):
     wd, ep, manifest, _ = pilot(tmp_path, monkeypatch)
     cap.capture(wd, CONFIG, ep)
-    audits = {"fingerprint": manifest["fingerprint"], "cases": {}}
+    seal_for_test(wd, ep)
+    audits = {"fingerprint": manifest["fingerprint"],
+              "blind_lock_sha256": cap.file_sha(wd / "blind_lock.json"), "cases": {}}
     for c in manifest["cases"]:
         if c["stego"]:
             audits["cases"][c["case_id"]] = {
+                "image_sha256": cap.json_load(wd / "raw" / (c["case_id"] + ".json"))["image_sha256"],
                 "pixel_carrier_verified": False, "source_literal_absent": True,
                 "reviewer_id": "mock-review", "method_family": "unverified",
                 "verified_decoders": {},
@@ -241,7 +257,7 @@ def test_image_without_verified_carrier_remains_in_denominator(tmp_path, monkeyp
     path = tmp_path / "audits.json"
     cap.json_save(path, audits)
     cap.oracle(wd, CONFIG, ep, path)
-    result = cap.finalize(wd, CONFIG, path, wd / "transcript.json")
+    result = cap.finalize(wd, CONFIG, path, wd / "transcript.json", ep)
     stegos = [c for c in cap.json_load(wd / "transcript.json")["cases"] if c["stego"]]
     assert len(stegos) == 2
     assert all(not c["pixel_carrier_verified"] and not c["oracle_decodes"] for c in stegos)
