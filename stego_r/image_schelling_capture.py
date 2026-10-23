@@ -366,12 +366,50 @@ def require_review(c: dict, audit: dict) -> None:
             raise ValueError(f"{c['case_id']}: rule-only disclosure review required")
 
 
+def freeze_review(workdir: Path, manifest: dict, lock: dict,
+                  audits_path: Path, audits: dict) -> dict:
+    """Pin the complete independent review before ANY oracle receives a rule.
+
+    The lock is a hash commitment to the submitted human audit, not a claim
+    that its visual or rule judgments were correct.
+    """
+    if json_load(audits_path).get("audit_state") == "UNREVIEWED":
+        raise ValueError("review template is still UNREVIEWED; reviewer must approve the completed audit")
+    expected = {
+        c["case_id"] for c in manifest["cases"]
+        if c["stego"] and lock["cases"][c["case_id"]]["kind"] == "rendered_png"
+    }
+    if set(audits) != expected:
+        raise ValueError("review must contain exactly all rendered stego cases before oracle")
+    for c in manifest["cases"]:
+        if c["case_id"] not in expected:
+            continue
+        review = audits[c["case_id"]]
+        require_review(c, review)
+        if review.get("image_sha256") != lock["cases"][c["case_id"]]["png_sha256"]:
+            raise ValueError(f"{c['case_id']}: review PNG hash mismatch")
+    receipt = {
+        "schema_version": "1.0",
+        "fingerprint": manifest["fingerprint"],
+        "manifest_sha256": file_sha(workdir / "manifest.json"),
+        "blind_lock_sha256": file_sha(workdir / "blind_lock.json"),
+        "audit_sha256": file_sha(audits_path),
+    }
+    path = workdir / "review_lock.json"
+    if path.exists() and json_load(path) != receipt:
+        raise ValueError("review changed after first rule-disclosure attempt")
+    if not path.exists():
+        json_save(path, receipt)
+    return receipt
+
+
 def oracle(workdir: Path, config_path: Path, endpoints_path: Path,
            audits_path: Path, max_cases: int | None = None,
            target: str | None = None, check_model: bool = False) -> int:
     config, endpoints, manifest = planned(workdir, config_path, endpoints_path)
-    require_blind_lock(workdir, config, endpoints, manifest)
+    lock = require_blind_lock(workdir, config, endpoints, manifest)
     _, audits = audits_for(workdir, audits_path)
+    freeze_review(workdir, manifest, lock, audits_path, audits)
     if target is not None and target not in config["models"]:
         raise ValueError("oracle target must be registered as a model")
     if check_model:
@@ -421,10 +459,12 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path,
     config, endpoints, manifest = planned(workdir, config_path, endpoints_path)
     lock = require_blind_lock(workdir, config, endpoints, manifest)
     _, audits = audits_for(workdir, audits_path)
+    freeze_review(workdir, manifest, lock, audits_path, audits)
     if manifest["fingerprint"] != fingerprint(config):
         raise ValueError("config changed since pre-registration")
     records: list[dict] = []
     failures: list[dict] = []
+    oracle_witnesses: dict[str, dict[str, dict]] = {}
     for c in manifest["cases"]:
         cid = c["case_id"]
         failure_path = workdir / "raw" / (cid + ".failure.json")
@@ -468,6 +508,8 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path,
             "prompt_id": config["decoder_prompt_id"],
         } for model in config["models"]]
         oracle_rows = []
+        if c["stego"]:
+            oracle_witnesses[cid] = {}
         viable = bool(c["stego"] and review["pixel_carrier_verified"] and review["source_literal_absent"])
         if viable:
             oracle_path = workdir / "raw" / (cid + ".oracles.json")
@@ -490,6 +532,11 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path,
                 answer, valid = extract_final(o["response"]["text"])
                 if o["answer"] != answer or o["format_valid"] is not valid:
                     raise ValueError(f"{cid}: oracle output differs from raw response")
+                oracle_witnesses[cid][outsider] = {
+                    "answer_sha256": sha_bytes(o["answer"].encode("utf-8")),
+                    "raw_text_sha256": sha_bytes(o["response"]["text"].encode("utf-8")),
+                    "rule_sha256": sha_bytes(review["rule_text"].encode("utf-8")),
+                }
                 oracle_rows.append({
                     "decoder_model": outsider, "answer": o["answer"],
                     "fresh_session": True, "image_only": True, "rule_only_disclosure": True,
@@ -508,11 +555,28 @@ def finalize(workdir: Path, config_path: Path, audits_path: Path,
                 mon: raw["monitors"][mon]["score"] for mon in config["blind_monitors"]
             },
         })
-    transcript = {
-        "origin": "verified_image_schelling_capture_v2",
+    post_receipt = {
+        "schema_version": "1.0",
         "fingerprint": manifest["fingerprint"],
         "manifest_sha256": lock["manifest_sha256"],
         "blind_lock_sha256": file_sha(workdir / "blind_lock.json"),
+        "review_lock_sha256": file_sha(workdir / "review_lock.json"),
+        "audit_sha256": file_sha(audits_path),
+        "oracle_answers": oracle_witnesses,
+    }
+    post_path = workdir / "oracle_receipt.json"
+    if post_path.exists() and json_load(post_path) != post_receipt:
+        raise ValueError("post-review oracle evidence changed after finalization")
+    if not post_path.exists():
+        json_save(post_path, post_receipt)
+    transcript = {
+        "origin": "verified_image_schelling_capture_v3",
+        "fingerprint": manifest["fingerprint"],
+        "manifest_sha256": lock["manifest_sha256"],
+        "blind_lock_sha256": file_sha(workdir / "blind_lock.json"),
+        "review_lock_sha256": file_sha(workdir / "review_lock.json"),
+        "audit_sha256": file_sha(audits_path),
+        "oracle_receipt_sha256": file_sha(post_path),
         "cases": records, "capture_failures": failures,
     }
     # Validate every provenance and case requirement before any output is written.
