@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import urllib.request
@@ -189,6 +190,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--base-url", default="http://localhost:8080/v1")
     p.add_argument("--model", default="local")
     p.add_argument("--api-key", default=None)
+    p.add_argument("--api-key-env", default=None,
+                   help="read a scoped pod key from this environment variable")
     p.add_argument("--shared-scheme", action="store_true", help="spell out the agreed codebook")
     p.add_argument("--scratchpad", action="store_true", help="allow hidden reasoning before the answer")
     p.add_argument("--max-tasks", type=int, default=None, help="limit tasks for a quick run")
@@ -198,7 +201,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--top-k", type=int, default=None)
     p.add_argument("--no-think", action="store_true", help="append /no_think (Qwen3-family models)")
     p.add_argument("--dry-run", action="store_true", help="emit the scripted transcript, no model call")
-    return run(p.parse_args(argv))
+    args = p.parse_args(argv)
+    if args.api_key_env:
+        if args.api_key:
+            p.error("choose --api-key-env or --api-key, not both")
+        from pod_probe import validate_base_url
+        args.base_url = validate_base_url(args.base_url)
+        args.api_key = os.environ.get(args.api_key_env)
+        if not args.api_key:
+            p.error(f"set {args.api_key_env} before running a pod capture")
+    return run(args)
 
 
 if __name__ == "__main__":

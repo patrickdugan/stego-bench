@@ -1,0 +1,33 @@
+name: Hyperspace pod gateway probe
+
+on:
+  push:
+    paths:
+      - 'stego_r/pod_probe.py'
+      - 'stego_r/generate.py'
+      - 'stego_r/generate_reasoning.py'
+      - 'tests/test_pod_probe.py'
+      - '.github/workflows/hyperspace-pod.yml'
+  pull_request:
+    paths:
+      - 'stego_r/pod_probe.py'
+      - 'stego_r/generate.py'
+      - 'stego_r/generate_reasoning.py'
+      - 'tests/test_pod_probe.py'
+      - '.github/workflows/hyperspace-pod.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile the external runners
+        run: python -m py_compile stego_r/pod_probe.py stego_r/generate.py stego_r/generate_reasoning.py
+      - name: Run fake-gateway tests (no pod, GPU or secrets required)
+        run: python -m unittest discover -s tests -p test_pod_probe.py -v
