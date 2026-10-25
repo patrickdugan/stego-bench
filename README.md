@@ -21,6 +21,9 @@ after a paraphrase defense):
 
 See [`paper/stego_bench.md`](paper/stego_bench.md) for motivation and results.
 
+For the formal zero-leakage question, shared-key counterexamples, and proof
+obligations, see [`Math/`](Math/README.md).
+
 ## Design: validate the instrument, then attach a model
 
 The `stegobench` package is a sealed, offline-first measurement instrument. It
