@@ -128,3 +128,10 @@ MIT — see [`LICENSE`](LICENSE).
 For real-model capture, v3 provenance also binds the independent human review
 and each outsider oracle recovery to original hash receipts, preventing a
 scored transcript from changing reviewer verdicts after the fact.
+
+## Hyperspace pod integration
+
+The [external model runners](stego_r/README.md#hyperspace-pod--cross-framework-qwen-capture)
+can query Hyperspace's OpenAI-compatible distributed inference gateway and
+write a separate, credential-free model/latency probe receipt. This preserves
+the sealed scorer and its existing transcript contract.

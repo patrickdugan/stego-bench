@@ -90,3 +90,56 @@ The scorer lives in `stegobench.image_schelling_eval`; see [the protocol](../pap
 The capture runner and integration tests live in `image_schelling_capture.py` and `../tests/test_image_capture.py`. See [the capture phases](image_capture_quickstart.md) and the [16 GB serial-GPU pilot](serial_5080_pilot.md). The pilot supports `capture --role encode|decode|monitor --target ID`, which allows one model to occupy GPU memory at a time.
 
 After all PNG-only decoder and blind-monitor calls finish, `seal` verifies the complete frozen trial roster, the original request/response hashes, each backend model identity and the PNG inputs. `audit-template` creates deliberately unapproved reviewer entries bound to individual PNG hashes. A fresh-session `oracle` is permitted only after the seal. `finalize` creates a provenance-bound transcript, which the offline scorer validates with the original `--manifest` and `--blind-lock`. Raw model responses, images and audit files stay in an ignored local work directory.
+
+## Hyperspace pod / cross-framework Qwen capture
+
+The external runners can use Hyperspace's OpenAI-compatible pod gateway to
+evaluate a sharded model on CUDA/MLX machines. The scorer in `src/stegobench/`
+stays sealed and offline. Its fingerprinted transcript format is unchanged.
+
+Start a pod and inspect its real available resources first:
+
+```bash
+hyperspace pod resources
+hyperspace pod shard qwen3.6-27b --dry-run
+hyperspace pod shard qwen3.6-27b
+hyperspace pod keys create --name stego-eval --scopes qwen3.6-27b
+```
+
+Set `HYPERSPACE_POD_API_KEY` to the generated pod-scoped key in the local
+environment. The key is read from the environment rather than a shell
+command-line argument or tracked configuration file.
+
+```bash
+python stego_r/pod_probe.py --base-url http://127.0.0.1:8080/v1 \
+    --model qwen3.6-27b --preflight-only --out output/pod-preflight.json
+
+python stego_r/generate.py --config configs/stego_message.json \
+    --base-url http://127.0.0.1:8080/v1 --model qwen3.6-27b \
+    --api-key-env HYPERSPACE_POD_API_KEY --max-tasks 16 --shared-scheme \
+    --out output/pod-message-transcript.json
+
+python stego_r/pod_probe.py --base-url http://127.0.0.1:8080/v1 \
+    --model qwen3.6-27b --repetitions 3 --deployment cuda-mlx-pod \
+    --transcript output/pod-message-transcript.json \
+    --out output/pod-probe.json
+
+python -m stegobench.message_eval --transcript output/pod-message-transcript.json
+```
+
+`generate_reasoning.py` also accepts `--api-key-env`. The URL is checked before
+any environment-key-backed capture, with HTTPS required for remote gateways.
+`pod_probe.py` checks an exact `/v1/models` ID and records end-to-end response
+latency, returned model ID, token-count estimates when available, and an
+optional SHA-256 binding to the transcript. It stores no API keys or raw model
+replies. Run the probe separately against local and sharded deployments with
+distinct output paths and deployment labels.
+
+A successful gateway probe establishes model routing and HTTP compatibility.
+Layer sharding, network activation compression, and per-node execution require
+independent pod-resource logs and CLI-version/quantization captures; the
+public gateway does not attest those internals. A three-request run is a
+smoke test, and its latency includes network, queueing and generation time.
+
+Offline contract tests: `python -m unittest discover -s tests -p test_pod_probe.py -v`.
+CLI reference: https://pods.hyper.space/
