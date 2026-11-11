@@ -1,0 +1,28 @@
+name: Stateful observability math
+on:
+  push:
+    paths:
+      - 'Math/**'
+      - '.github/workflows/stateful-math.yml'
+  pull_request:
+    paths:
+      - 'Math/**'
+      - '.github/workflows/stateful-math.yml'
+jobs:
+  finite-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run finite information-flow tests
+        run: python -m unittest discover -s Math -p 'test_*.py' -v
+      - name: Reproduce stateful reference
+        run: |
+          python Math/stateful_observability.py > /tmp/stateful-reference.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          assert json.loads(Path('/tmp/stateful-reference.json').read_text()) == json.loads(Path('Math/results/stateful_observability.json').read_text())
+          PY

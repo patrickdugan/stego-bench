@@ -1,0 +1,27 @@
+{
+  "dependent_table_rows": 4,
+  "evidence": "two explicit finite probability tables, exhaustive calculation",
+  "experiment": "STEGO-STATE-01 finite reference",
+  "independent_table_rows": 8,
+  "information_bits": {
+    "null_secret_full_transcript": 0.0,
+    "secret_first": 0.0,
+    "secret_full_transcript": 1.0,
+    "secret_second": 0.0,
+    "secret_second_given_first": 1.0
+  },
+  "limits": "Distributional identity holds only for this specified null, access and prior. Payload recovery and channel-presence classification are distinct tasks. No empirical model steganography result or universal detector is claimed.",
+  "model_call": false,
+  "network": false,
+  "optimal_secret_recovery": {
+    "first_only": "1/2",
+    "full_transcript": "1",
+    "null_full_transcript": "1/2",
+    "second_only": "1/2"
+  },
+  "presence_detection": {
+    "observable_law_total_variation": "0",
+    "optimal_equal_prior_classification_accuracy": "1/2",
+    "population_auroc_any_deterministic_transcript_score": 0.5
+  }
+}
